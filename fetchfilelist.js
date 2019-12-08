@@ -68,17 +68,11 @@ var fetch_file_list_helper = Base.extend({
 					
 				});
 			} else {
-				var sub_sender = self.context.popwin.webContents;
 				file_list_db.query_count({'task_id': task_id, 'isdir':0, 'app_id': app_id, 'pin': 5},(cnt_row)=>{
 					if(cnt_row){
 						var total_cnt = cnt_row.cnt;
 						if(task.num == total_cnt){
 							transfer_tasks_db.update_by_id(task_id, {'pin': 5}, ()=>{
-								// sub_sender.send('asynchronous-popwin', {'tag':'progress',
-								// 	'id': task.id,
-								// 	'over': true,
-								// 	'task': task
-								// });
 								self.check_ready((tasks)=>{
 									self.context._dialog(tasks);
 								});
@@ -86,8 +80,7 @@ var fetch_file_list_helper = Base.extend({
 						} else {
 							self.check_ready((tasks)=>{
 								self.context._dialog(tasks, (open_win)=>{
-									var _sub_sender = open_win.popwin.webContents;
-									_sub_sender.send('asynchronous-popwin', {'tag':'progress',
+									self.context.popwin_send({'tag':'progress',
 										'id': task.id,
 										'over': false,
 										'task': task,
@@ -209,16 +202,11 @@ var fetch_file_list_helper = Base.extend({
 							var cnt = file['total'];
 							if(task.hasOwnProperty('over_count')){
 								task['over_count'] = task['over_count'] + cnt;
-								if(self.context.popwin){
-									var sub_sender = self.context.popwin.webContents;
-									if(sub_sender){
-										sub_sender.send('asynchronous-popwin', {'tag':'progress', 
-											'id': task.id,
-											'over': task['over_count'] == task['total_count'],
-											'task': task
-										});
-									}
-								}
+								self.context.popwin_send({'tag':'progress',
+									'id': task.id,
+									'over': task['over_count'] == task['total_count'],
+									'task': task
+								});
 							}
 						}
 						self.transfer(task);
@@ -240,16 +228,11 @@ var fetch_file_list_helper = Base.extend({
 						var cnt = 1;
 						if(task.hasOwnProperty('over_count')){
 							task['over_count'] = task['over_count'] + cnt;
-							if(self.context.popwin){
-								var sub_sender = self.context.popwin.webContents;
-								if(sub_sender){
-									sub_sender.send('asynchronous-popwin', {'tag':'progress', 
-										'id': task.id,
-										'over': task['over_count'] == task['total_count'],
-										'task': task
-									});
-								}
-							}
+							self.context.popwin_send({'tag':'progress',
+								'id': task.id,
+								'over': task['over_count'] == task['total_count'],
+								'task': task
+							});
 						}
 					}
 					self.fetch_sub_file_list(task, parent_item);
@@ -494,7 +477,6 @@ var fetch_file_list_helper = Base.extend({
 	on_fetched:function(args){
 		var self = this;
 		var sender = this.context.win.webContents;
-		var popwin_sender = this.context.popwin?this.context.popwin.webContents:null;
 		var params = args.params, fid_list = args.fid_list, parent_dir = args.parent_dir, target_dir = args.target_dir, pos = args.pos, 
 		result=args.result, app_id = args.app_id;
 		var task_name = "";
@@ -510,6 +492,13 @@ var fetch_file_list_helper = Base.extend({
 			}
 			if(result.errno == 0){
 				if(has_records){
+					self.context.check_open_popwin((popwin)=>{
+						if(!popwin){
+							self.check_ready((tasks)=>{
+								self.context._dialog(tasks,()=>{},true, true);
+							});
+						}
+					});
 					var records = result.records;
 					_task.num = _task.num + records.length;
 					file_list_db.save_list_one_by_one(records, 
@@ -548,9 +537,6 @@ var fetch_file_list_helper = Base.extend({
 							'task_id':item.id
 						};
 					}, (_list)=>{
-						// if(popwin_sender){
-						// 	popwin_sender.send('asynchronous-popwin', {'tag':'statistic', 'pin':0, 'task':_task, 'gparams':this.context});
-						// }
 						self.context.update_statistic(_task);
 						next_oper();
 					});
@@ -607,10 +593,8 @@ var fetch_file_list_helper = Base.extend({
 												_task.dirnum = dir_cnt;
 												transfer_tasks_db.update_by_id(_task.id, {'pin': 1, 'num':_task.num, 'dirnum':_task.dirnum}, ()=>{
 													_task.pin = 1;
-													if(popwin_sender){
-														// popwin_sender.send('asynchronous-popwin', {'tag':'statistic', 'task':_task});
-														self.context.update_statistic(_task);
-													}
+													self.context.update_statistic(_task);
+													
 													sender.send('asynchronous-spider',{'tag':'fetch_file_list_complete', 'params':params,
 														'fid_list': fid_list, 'parent_dir': parent_dir, 'target_dir': target_dir, 'pos': pos
 													});

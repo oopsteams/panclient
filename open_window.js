@@ -115,23 +115,38 @@ var window_helper = Base.extend({
 			self.popwin.webContents.send('asynchronous-popwin', {'tag':'statistic', 'task':task, 'gparams':fetched_global_base_params});
 		}
 	},
-	_dialog:function(tasks){
+	_dialog:function(tasks,cb,ismodal,bancloseable){
 		var params = {'tasks':tasks, 'gparams':fetched_global_base_params};
-		this.dialog(params);
+		this.dialog(params,cb,ismodal,bancloseable);
 	},
-	dialog:function(params,callback){
+	popwin_send:function(args){
+		if(self.popwin){
+			self.popwin.webContents.send('asynchronous-popwin', args);
+			return true;
+		}
+		return false;
+	},
+	check_open_popwin:function(callback){
+		var self = this;
+		if(self.popwin){
+			callback(self.popwin);
+		} else {
+			callback(null)
+		}
+	},
+	dialog:function(params,callback,ismodal,bancloseable){
 		var self = this;
 		self.popwin_params = params;
 		if(!self.popwin){
 			var options = {
-						modal:false,
+						modal:ismodal?true:false,
 						parent:self.win,
-						width:650,
-						height:350,
+						width:800,
+						height:400,
 						resizable:false,
 						show:false,
 						title:'转移文件',
-						closable:true,
+						closable:bancloseable?false:true,
 						webPreferences: {
 						  nodeIntegration: true,
 						  webSecurity: false,
