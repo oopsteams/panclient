@@ -200,7 +200,7 @@ if(ele_remote){
 			var params = args.params, fid_list = args.fid_list, parent_dir = args.parent_dir, target_dir=args.target_dir, pos = args.pos;
 			deep_fetch_file_list_by_fid(fid_list, parent_dir, target_dir, params, pos);
 		}else if('fetch_file_list_complete'==args.tag){
-			alert('文件分析完成!');
+			// alert('文件分析完成!');
 		}else if('fetched_bd_context_ready' == args.tag){
 			var fid_list = args.fid_list;
 			var global_params = args.global_params;
@@ -270,8 +270,19 @@ if(ele_remote){
 					if(maybe_failed){
 						if(tmp_retry_cnt<tmp_max_retry_cnt){
 							console.log('to_transfer_confirm err! wait 2 seconds,will to retry!:', rs);
+							//TODO check file or folder exists.
+							
 							setTimeout(()=>{
-								to_transfer_file(task, file, target_dir, tmp_retry_cnt + 1);
+								var _check_dir = target_dir + "/" + file.filename;
+								console.log('检测目标文件是否已存在:', _check_dir);
+								check_self_list(_check_dir, false, (rs)=>{
+									if(rs.errno == 0){
+										console.log('目标文件已存在,继续执行:', file);
+										ipcRenderer.send('asynchronous-spider-backend', {"tag":"transfer_ok_continue", "task":task, "file": file, "parent_item": parent_item});
+									} else {
+										to_transfer_file(task, file, target_dir, tmp_retry_cnt + 1);
+									}
+								});
 							}, 2000);
 						} else {
 							console.log('to_transfer_confirm err:', rs);
@@ -632,8 +643,8 @@ if(ele_remote){
 					retry_cnt = 0;
 				}
 				baidu_api.get_req(url, (rs)=>{
-					if(rs.errno!=0){
-						console.log('file list err rs:', rs);
+					if(rs.errno!=0 && rs.errno!=-9){
+						console.log('file list sys err rs:', rs);
 					}
 					if(callback){
 						callback(null, rs);

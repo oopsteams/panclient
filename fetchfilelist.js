@@ -115,7 +115,6 @@ var fetch_file_list_helper = Base.extend({
 					file_list_db.query_count({'app_id': app_id, 'task_id':task_id, 'parent':parent_item.id, 'isdir':0, 'pin':0},(fcnt_row)=>{
 						if(fcnt_row){
 							var file_cnt = fcnt_row.cnt;
-							parent_item['file_count'] = file_cnt;
 							if(!need_one_by_one && file_cnt < transfer_bulk_size && file_cnt == total_cnt){
 								parent_item['total'] = file_cnt;
 								file_list_db.query_sum('size', {'parent':parent_item.id, 'task_id':task_id}, (sum_row)=>{
@@ -160,18 +159,13 @@ var fetch_file_list_helper = Base.extend({
 		
 		
 		function next_step(){//when single file transfer.
-			if(parent_item.hasOwnProperty('file_count')){
-				check_folder_over_file_cnt(parent_item['file_count']);
-			} else {
-				console.log('parent_item not have file_count property!!!');
-				file_list_db.query_count({'app_id': app_id, 'task_id':task_id, 'parent':parent_item.id, 'isdir':0, 'pin':0},(fcnt_row)=>{
-					if(fcnt_row){
-						var file_count = fcnt_row.cnt;
-						parent_item['file_count'] = file_cnt;
-						check_folder_over_file_cnt(file_count);
-					}
-				});
-			}
+			file_list_db.query_count({'app_id': app_id, 'task_id':task_id, 'parent':parent_item.id, 'isdir':0},(fcnt_row)=>{
+				if(fcnt_row){
+					var file_count = fcnt_row.cnt;
+					parent_item['file_count'] = file_count;
+					check_folder_over_file_cnt(file_count);
+				}
+			});
 		}
 		function check_folder_over_file_cnt(file_count){
 			file_list_db.query_count({'app_id': app_id, 'task_id':task_id, 'parent':parent_item.id, 'isdir':0, 'pin':5},(fcnt_row)=>{
@@ -249,7 +243,6 @@ var fetch_file_list_helper = Base.extend({
 	},
 	transfer:function(task,retry){
 		var self = this;
-		console.log("transfer task:", task.id, task.path, task.target_path, task.over_count, task.total_count);
 		var task_id = task.id;
 		var app_id = task.app_id;
 		
@@ -357,6 +350,7 @@ var fetch_file_list_helper = Base.extend({
 		var dir = '';
 		var task = null;
 		var task_id = 0;
+		var need_one_by_one = false;
 		if(typeof(options) == 'string'){
 			dir = options;
 		} else {
@@ -366,6 +360,9 @@ var fetch_file_list_helper = Base.extend({
 			dir = file.path;
 			if(task){
 				task_id = task.id;
+				if(task.hasOwnProperty('one_by_one')){
+					need_one_by_one = task.one_by_one;
+				}
 			}
 		}
 		var _dir_idx = dir.lastIndexOf('/');
@@ -407,10 +404,13 @@ var fetch_file_list_helper = Base.extend({
 							sender.send('asynchronous-spider',args);
 						} else {
 							console.log('can not find the dir:', dir);
-							sender.send('asynchronous-spider',{'tag':'check_self_dir', 'dir':target_dir, "task":task, "file": file, "parent_item": parent_item});
-							// args.tag = 'to_transfer_confirm';
-							// args.target_dir = target_dir;
-							// sender.send('asynchronous-spider',args);
+							if(need_one_by_one){
+								sender.send('asynchronous-spider',{'tag':'check_self_dir', 'dir':target_dir, "task":task, "file": file, "parent_item": parent_item});
+							} else {
+								args.tag = 'to_transfer_confirm';
+								args.target_dir = target_dir;
+								sender.send('asynchronous-spider',args);
+							}
 						}
 					});
 					
