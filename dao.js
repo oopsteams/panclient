@@ -13,7 +13,13 @@ const create_table_format = 'CREATE TABLE IF NOT EXISTS %s (%s)';
 const g_db_file_path = path.join(data_dir, g_db_name);
 const g_db = new sqlite3.Database(g_db_file_path,function(err) {
 				if(err){
-					throw err;
+					const g_db = new sqlite3.Database(g_db_file_path,(err)=>{
+						if(err){
+							throw err;
+						} else {
+							console.log("创建DB成功!", g_db_file_path);
+						}
+					});
 				} else {
 					console.log("创建DB成功!", g_db_file_path);
 				}
