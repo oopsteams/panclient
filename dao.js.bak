@@ -1,0 +1,80 @@
+const Base = require("./base.js")
+const low =  require('lowdb');
+const FileSync = require('lowdb/adapters/FileSync')
+var Dao = Base.extend(
+	{
+		constructor:function(options){
+		    this.options = options;
+			this.path = options.path;
+			this.type = options.type;
+			this.name = options.name;
+			this.init();
+		},
+		init:function(){
+			const adapter = new FileSync(this.path)
+			this.db = low(adapter)
+			var ithis = this;
+			if(!this.db.has(this.name).value()){
+				var params = {}
+				if('list' == this.type){
+					params[this.name] = [];
+				} else {
+					params[this.name] = {};
+				}
+				ithis.db.defaults(params).write();
+			}
+		},
+		put:function(item){
+			if("list" == this.type){
+				this.db.get(this.name).push(item).write()
+			} else {
+				this.db.get(this.name).assign(item).write();
+			}
+		},
+		update_by_id:function(id, params){
+			if("list" == this.type){
+				this.db.get(this.name).find({'id': id}).assign(params).write()
+			} else {
+				this.db.get(this.name).assign(params).write();
+			}
+		},
+		get:function(key, value){
+			if("list" == this.type){
+				var params = {};
+				params[key] = value;
+				return this.db.get(this.name).find(params).value();
+			} else {
+				if(key){
+					return this.db.get(this.name).value()[key]
+				} else {
+					return this.db.get(this.name).value()
+				}
+			}
+		},
+		query:function(key, value){
+			if("list" == this.type){
+				if(!key){
+					return this.db.get(this.name).value()
+				}
+				var params = {};
+				params[key] = value;
+				return this.db.get(this.name).filter(params).value();
+			} else {
+				return this.get(key, value);
+			}
+		},
+		del:function(key, value){
+			if("list" == this.type){
+				var params = {}
+				params[key] = value;
+				this.db.get(this.name).remove(params).write();
+			} else {
+				this.db.unset(this.name+"."+key).write()
+			}
+		},
+		close:function(){
+			
+		}
+	}
+);
+module.exports = Dao;
