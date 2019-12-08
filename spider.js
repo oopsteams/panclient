@@ -96,7 +96,7 @@ if(ele_remote){
 	var dialog = null;
 	var dialog_max_width = 450;
 	ipcRenderer.on('asynchronous-spider', function(event, args){
-		console.log("recv args:", args);
+		// console.log("recv args:", args);
 		if('start'==args.tag){
 			var base_dir = args.base_dir;
 			if(args.params){
