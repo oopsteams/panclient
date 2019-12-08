@@ -120,6 +120,7 @@ var window_helper = Base.extend({
 		this.dialog(params,cb,ismodal,bancloseable);
 	},
 	popwin_send:function(args){
+		var self = this;
 		if(self.popwin){
 			self.popwin.webContents.send('asynchronous-popwin', args);
 			return true;
