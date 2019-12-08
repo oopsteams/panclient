@@ -419,7 +419,9 @@ var fetch_file_list_helper = Base.extend({
 		var parent_fid = fid_list[pos];
 		this.check_out_task(params, parent_dir, target_dir, app_id, (item)=>{
 			var _task = item;
-			console.log('on_fetched result:', result);
+			if(result.errno!=0){
+				console.log('on_fetched error result:', result);
+			}
 			if(result.errno == 0){
 				if(has_records){
 					var records = result.records;
@@ -477,6 +479,7 @@ var fetch_file_list_helper = Base.extend({
 						})
 					} else {
 						pos = pos + 1;
+						params.page = 1;
 						if(pos < fid_list.length){
 							sender.send('asynchronous-spider',{'tag':'fetch_file_list_continue', 'params':params,
 								'fid_list': fid_list, 'parent_dir': parent_dir, 'pos': pos
