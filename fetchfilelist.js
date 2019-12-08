@@ -269,6 +269,10 @@ var fetch_file_list_helper = Base.extend({
 							_t['over_count'] = o_cnt;
 							_t['total_count'] = t_cnt;
 							_t['total_size'] = total_size;
+							if(_t.num != _t.total_count){
+								_t.num = _t.total_count;
+								transfer_tasks_db.update_by_id(_t.id,{'num': _t.num},()=>{});
+							}
 							re_call(pos+1);
 						});
 					}
