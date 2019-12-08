@@ -19,7 +19,7 @@ if(ele_remote){
 	var _id_reg = new RegExp("_id_", "g");
 	var _title_reg = new RegExp("_title_tips_", "g");
 	var _title_show_reg = new RegExp("_title_show_", "g");
-	var item_format = '<div id="_id__h"><table width="100%" class="gridtable"><tr id="_id__tr"><td style="width:230px;"><div style="width:200px;text-overflow:ellipsis;overflow:hidden;white-space:nowrap;" title="_title_tips_">_title_show_</div></td><td><div id="_id__progressbar" title="_title_tips_"></div></td><td width="60px" id="_id__speed"></td><td width="40px"><button id="_id__btn">&nbsp;</button></td><td width="40px"><button id="_id__act_btn">&nbsp;</button></td></tr></table></div><div id="_id__sub_container" class="desc">&nbsp;</div>';
+	var item_format = '<div id="_id__h"><table width="100%" class="gridtable"><tr id="_id__tr"><td style="width:230px;"><div style="width:200px;text-overflow:ellipsis;overflow:hidden;white-space:nowrap;" title="_title_tips_">_title_show_</div></td><td><div id="_id__progressbar" title="_title_tips_"></div></td><td width="60px" id="_id__speed"></td><td width="40px"><button id="_id__btn">&nbsp;</button></td><td width="40px"><button id="_id__act_btn">&nbsp;</button></td><td width="40px"><button id="_id__one_by_one_btn">OneByOne</button></td></tr></table></div><div id="_id__sub_container" class="desc">&nbsp;</div>';
 	
 	var ipcRenderer = require('electron').ipcRenderer;
 	ipcRenderer.on('asynchronous-popwin', function(event, args){
@@ -69,6 +69,7 @@ if(ele_remote){
 				var btn = $('#'+item_id+'_btn');
 				btn[0].retry = true;
 				btn.show();
+				one_by_one_btn.show();
 			} else {
 				update_task_desc(task);
 			}
@@ -144,6 +145,12 @@ if(ele_remote){
 			tr=tasks_container.find('#'+item_id+'_tr');
 			var act_btn = $('#'+item_id+'_act_btn');
 			act_btn[0].context = _t;
+			
+			var one_by_one_btn = $('#'+item_id+'_one_by_one_btn');
+			one_by_one_btn[0].context = _t;
+			one_by_one_btn.html("逐个文件方式继续下载");
+			one_by_one_btn.button({icon: "ui-icon-arrowthickstop-1-s", showLabel: true});
+			one_by_one_btn.hide();
 			var btn = $('#'+item_id+'_btn');
 			btn[0].context = _t;
 			btn.html("继续下载");
@@ -152,11 +159,13 @@ if(ele_remote){
 			act_btn.button({icon: "ui-icon-close", showLabel: false});
 			if([2].indexOf(_t.pin)>=0){
 				btn[0].retry = true;
+				one_by_one_btn.show();
 			}
 			btn.on("click", function(event){
 				var context=event.currentTarget.context;
 				var pin = context.pin;
 				console.log('btn pin:', pin);
+				context.one_by_one=false;
 				if(event.currentTarget.retry){
 					ipcRenderer.send('asynchronous-popwin-backend', {"tag":"retry_transfer", "task":context, "quota":gparams.quota});
 				} else {
@@ -164,9 +173,18 @@ if(ele_remote){
 				}
 				btn.hide();
 			});
+			one_by_one_btn.on("click", function(event){
+				var context=event.currentTarget.context;
+				var pin = context.pin;
+				context.one_by_one=true;
+				ipcRenderer.send('asynchronous-popwin-backend', {"tag":"retry_transfer", "task":context, "quota":gparams.quota});
+				one_by_one_btn.hide();
+				btn.hide();
+			});
 			if([0,9].indexOf(_t.pin)>=0){
 				btn.hide();
 				act_btn.hide();
+				one_by_one_btn.hide();
 				var h_desc = '转存任务已删除!';
 				if(_t.pin == 9){
 				} else if(_t.pin == 0){
@@ -177,6 +195,7 @@ if(ele_remote){
 				build_sub_widget(_t);
 				if([5].indexOf(_t.pin)>=0){
 					btn.hide();
+					one_by_one_btn.hide();
 				}
 			}
 		}

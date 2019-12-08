@@ -100,7 +100,10 @@ var fetch_file_list_helper = Base.extend({
 		var app_id = task.app_id;
 		var task_id = task.id;
 		var sender = this.context.win.webContents;
-		
+		var need_one_by_one = false;
+		if(task.hasOwnProperty('one_by_one')){
+			need_one_by_one = task.one_by_one;
+		}
 		file_list_db.update_by_id(parent_item.id, {'pin': 4, 'tm':helpers.now()}, function(){
 			check_bulk_conditions();
 		});
@@ -113,7 +116,7 @@ var fetch_file_list_helper = Base.extend({
 						if(fcnt_row){
 							var file_cnt = fcnt_row.cnt;
 							parent_item['file_count'] = file_cnt;
-							if(file_cnt < transfer_bulk_size && file_cnt == total_cnt){
+							if(!need_one_by_one && file_cnt < transfer_bulk_size && file_cnt == total_cnt){
 								parent_item['total'] = file_cnt;
 								file_list_db.query_sum('size', {'parent':parent_item.id, 'task_id':task_id}, (sum_row)=>{
 									if(sum_row){
@@ -126,20 +129,7 @@ var fetch_file_list_helper = Base.extend({
 									});
 								});
 							} else {
-								file_list_db.query_mult_params({'parent': parent_item.id, 'task_id':task_id, 'isdir':0, 'app_id': app_id, 'pin': 0}, (file_list)=>{
-									if(file_list && file_list.length>0){
-										var file = file_list[0];
-										console.log('fetch_sub_file_list file:', file.path);
-										file_list_db.update_by_id(file.id, {'pin': 4}, function(){
-											setTimeout(()=>{
-												sender.send('asynchronous-spider', {'tag':'start_transfer', 'parent_item': parent_item, 'file':file, 'task': task});
-											}, 100);
-											
-										});
-									} else {
-										next_step();
-									}
-								}, 1);
+								one_by_one();
 							}
 						} else {
 							next_step();
@@ -149,6 +139,23 @@ var fetch_file_list_helper = Base.extend({
 					next_step();
 				}
 			});
+		}
+		
+		function one_by_one(){
+			file_list_db.query_mult_params({'parent': parent_item.id, 'task_id':task_id, 'isdir':0, 'app_id': app_id, 'pin': 0}, (file_list)=>{
+				if(file_list && file_list.length>0){
+					var file = file_list[0];
+					console.log('fetch_sub_file_list file:', file.path);
+					file_list_db.update_by_id(file.id, {'pin': 4}, function(){
+						setTimeout(()=>{
+							sender.send('asynchronous-spider', {'tag':'start_transfer', 'parent_item': parent_item, 'file':file, 'task': task});
+						}, 100);
+						
+					});
+				} else {
+					next_step();
+				}
+			}, 1);
 		}
 		
 		
@@ -400,10 +407,10 @@ var fetch_file_list_helper = Base.extend({
 							sender.send('asynchronous-spider',args);
 						} else {
 							console.log('can not find the dir:', dir);
-							// sender.send('asynchronous-spider',{'tag':'check_self_dir', 'dir':target_dir, "task":task, "file": file, "parent_item": parent_item});
-							args.tag = 'to_transfer_confirm';
-							args.target_dir = target_dir;
-							sender.send('asynchronous-spider',args);
+							sender.send('asynchronous-spider',{'tag':'check_self_dir', 'dir':target_dir, "task":task, "file": file, "parent_item": parent_item});
+							// args.tag = 'to_transfer_confirm';
+							// args.target_dir = target_dir;
+							// sender.send('asynchronous-spider',args);
 						}
 					});
 					
