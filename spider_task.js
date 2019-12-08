@@ -69,6 +69,8 @@ if(ele_remote){
 				var btn = $('#'+item_id+'_btn');
 				btn[0].retry = true;
 				btn.show();
+			} else {
+				update_task_desc(task);
 			}
 			
 		} else if('statistic' == args.tag){
