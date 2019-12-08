@@ -135,6 +135,12 @@ var window_helper = Base.extend({
 			callback(null)
 		}
 	},
+	force_close_popwin:function(){
+		var self = this;
+		if(self.popwin){
+			self.popwin.close();
+		}
+	},
 	dialog:function(params,callback,ismodal,bancloseable){
 		var self = this;
 		self.popwin_params = params;
@@ -192,8 +198,9 @@ var window_helper = Base.extend({
 					self.fetch_helper.del(args.task);
 				}
 			});
+		}else{
+			self.popwin.setClosable(bancloseable?false:true)
 		}
-		
 		self.popwin.loadURL(`file://${__dirname}/transfer_tasks.html`);
 		
 	},
