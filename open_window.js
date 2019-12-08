@@ -143,6 +143,9 @@ var window_helper = Base.extend({
 			self.popwin.once('ready-to-show', () => {
 				self.popwin.show();
 			});
+			self.popwin.on('closed', () => {
+			  self.popwin = null;
+			})
 			self.popwin.webContents.on('did-finish-load', () => {
 				console.log('send start=====>');
 			    self.popwin.webContents.send('asynchronous-popwin', {tag:'start'});
