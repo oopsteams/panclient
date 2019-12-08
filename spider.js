@@ -253,22 +253,37 @@ if(ele_remote){
 			}
 		} else if('to_transfer_confirm' == args.tag){
 			var parent_item= args.parent_item, file=args.file, task= args.task, target_dir = args.target_dir;
-			
-			bd_proxy_api.transfer_file(task, file, target_dir, (err, rs)=>{
-				if(rs){
-					global_base_params.remain = global_base_params.remain - file.size;
-					if(rs.errno == 0){
-						ipcRenderer.send('asynchronous-spider-backend', {"tag":"transfer_ok_continue", "task":task, "file": file, "parent_item": parent_item});
-					}else{
-						ipcRenderer.send('asynchronous-spider-backend', {"tag":"transfer_ok_continue_failed", "task":task, "file": file, "parent_item": parent_item});
+			var tmp_max_retry_cnt = 1;
+			function to_transfer_file(task, file, target_dir,tmp_retry_cnt){
+				bd_proxy_api.transfer_file(task, file, target_dir, (err, rs)=>{
+					var maybe_failed = false;
+					if(rs){
+						if(rs.errno == 0){
+							global_base_params.remain = global_base_params.remain - file.size;
+							ipcRenderer.send('asynchronous-spider-backend', {"tag":"transfer_ok_continue", "task":task, "file": file, "parent_item": parent_item});
+						}else{
+							maybe_failed = true;
+						}
+					} else {
+						maybe_failed = true;
 					}
-				} else {
-					ipcRenderer.send('asynchronous-spider-backend', {"tag":"transfer_ok_continue_failed", "task":task, "file": file, "parent_item": parent_item});
-				}
-			});
+					if(maybe_failed){
+						if(tmp_retry_cnt<tmp_max_retry_cnt){
+							console.log('to_transfer_confirm err! wait 2 seconds,will to retry!:', rs);
+							setTimeout(()=>{
+								to_transfer_file(task, file, target_dir, tmp_retry_cnt + 1);
+							}, 2000);
+						} else {
+							console.log('to_transfer_confirm err:', rs);
+							ipcRenderer.send('asynchronous-spider-backend', {"tag":"transfer_ok_continue_failed", "task":task, "file": file, "parent_item": parent_item});
+						}
+					}
+				});
+			}
+			to_transfer_file(task, file, target_dir, 0)
+			
 		} else if('transfer_complete' == args.tag){
 			alert('文件转存完成!');
-			
 		}
 	});
 

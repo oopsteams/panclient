@@ -19,7 +19,7 @@ if(ele_remote){
 	var _id_reg = new RegExp("_id_", "g");
 	var _title_reg = new RegExp("_title_tips_", "g");
 	var _title_show_reg = new RegExp("_title_show_", "g");
-	var item_format = '<div id="_id__h"><table width="100%" class="gridtable"><tr id="_id__tr"><td style="width:230px;"><div style="width:200px;text-overflow:ellipsis;overflow:hidden;white-space:nowrap;" title="_title_tips_">_title_show_</div></td><td><div id="_id__progressbar" title="_title_tips_"></div></td><td width="60px" id="_id__speed"></td><td width="40px"><button id="_id__btn">&nbsp;</button></td><td width="40px"><button id="_id__act_btn">&nbsp;</button></td></tr></table></div><div id="_id__sub_container">&nbsp;</div>';
+	var item_format = '<div id="_id__h"><table width="100%" class="gridtable"><tr id="_id__tr"><td style="width:230px;"><div style="width:200px;text-overflow:ellipsis;overflow:hidden;white-space:nowrap;" title="_title_tips_">_title_show_</div></td><td><div id="_id__progressbar" title="_title_tips_"></div></td><td width="60px" id="_id__speed"></td><td width="40px"><button id="_id__btn">&nbsp;</button></td><td width="40px"><button id="_id__act_btn">&nbsp;</button></td></tr></table></div><div id="_id__sub_container" class="desc">&nbsp;</div>';
 	
 	var ipcRenderer = require('electron').ipcRenderer;
 	ipcRenderer.on('asynchronous-popwin', function(event, args){
@@ -204,7 +204,7 @@ if(ele_remote){
 		var item_id = task.id;
 		var sub_container = item_id+"_sub_container";
 		var task_desc = '';
-		var total_size = 0, dirnum=0, num=0;
+		var total_size = 0, dirnum=0, num=0, over_count=0;
 		if(_t.hasOwnProperty('total_size')){
 			total_size = _t.total_size;
 			if(task_desc.length>0){
@@ -225,6 +225,13 @@ if(ele_remote){
 				task_desc += ',';
 			}
 			task_desc += "[文件总数:"+num+"]";
+		}
+		if(_t.hasOwnProperty('over_count')){
+			over_count = _t.over_count;
+			if(task_desc.length>0){
+				task_desc += ',';
+			}
+			task_desc += "[转存总数:"+over_count+"]";
 		}
 		$("#"+sub_container).html(task.name+':'+task_desc);
 	}
