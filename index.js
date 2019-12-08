@@ -15,6 +15,7 @@ if(!fs.existsSync(data_dir)){
   console.log('['+data_dir+']dir make success!');
   dao = require('./dao.js');// wait data_dir make success
 }else{
+  dao = require('./dao.js');// wait data_dir make success
   console.log('['+data_dir+']dir exist!');
 }
 
