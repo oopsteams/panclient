@@ -33,15 +33,21 @@ if(ele_remote){
 				jQuery.getScript("./www/js/jquery-ui/jquery-ui.js").done(function() {
 					console.log('load ui ok!');
 					init_widget(params);
+					ipcRenderer.send('asynchronous-popwin-backend', {"tag":"init_ok"});
 				});
 			} else {
 				init_widget(params);
+				ipcRenderer.send('asynchronous-popwin-backend', {"tag":"init_ok"});
 			}
-			console.log('args:', args);
+			// console.log('args:', args);
 		} else if('progress' == args.tag){
 			var item_id = args.id;
 			var isover = args.over;
 			var task = args.task;
+			var err = null;
+			if(args.hasOwnProperty('err')){
+				err = args.err;
+			}
 			// console.log('progress args:', args);
 			if(task.hasOwnProperty('over_count') && task.hasOwnProperty('total_count')){
 				var over_count = task.over_count;
@@ -57,6 +63,12 @@ if(ele_remote){
 				$("#"+item_id+'_tr')[0].progressbar.progressbar("value", 100);
 				var btn = $('#'+item_id+'_btn');
 				btn.hide();
+			}
+			if(err){
+				alert(err);
+				var btn = $('#'+item_id+'_btn');
+				btn[0].retry = true;
+				btn.show();
 			}
 			
 		} else if('statistic' == args.tag){
@@ -103,7 +115,7 @@ if(ele_remote){
 			}
 		}
 	});
-	ipcRenderer.send('asynchronous-popwin-backend', {"tag":"init"});
+	// ipcRenderer.send('asynchronous-popwin-backend', {"tag":"init"});
 	
 	function build_percentage(part_val, total){
 	  return Math.round((part_val/total) * 10000)/100;
@@ -136,12 +148,19 @@ if(ele_remote){
 			btn.button({icon: "ui-icon-arrowthickstop-1-s", showLabel: false});
 			act_btn.html("关闭任务");
 			act_btn.button({icon: "ui-icon-close", showLabel: false});
-			
+			if([2].indexOf(_t.pin)>=0){
+				btn[0].retry = true;
+			}
 			btn.on("click", function(event){
 				var context=event.currentTarget.context;
 				var pin = context.pin;
 				console.log('btn pin:', pin);
-				ipcRenderer.send('asynchronous-popwin-backend', {"tag":"start_transfer", "task":context, "quota":gparams.quota});
+				if(event.currentTarget.retry){
+					ipcRenderer.send('asynchronous-popwin-backend', {"tag":"retry_transfer", "task":context, "quota":gparams.quota});
+				} else {
+					ipcRenderer.send('asynchronous-popwin-backend', {"tag":"start_transfer", "task":context, "quota":gparams.quota});
+				}
+				btn.hide();
 			});
 			if([0,9].indexOf(_t.pin)>=0){
 				btn.hide();
@@ -154,7 +173,7 @@ if(ele_remote){
 				$("#"+item_id+"_progressbar").html(h_desc);
 			} else {
 				build_sub_widget(_t);
-				if([2,5].indexOf(_t.pin)>=0){
+				if([5].indexOf(_t.pin)>=0){
 					btn.hide();
 				}
 			}

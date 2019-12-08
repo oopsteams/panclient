@@ -119,7 +119,7 @@ var window_helper = Base.extend({
 		var params = {'tasks':tasks, 'gparams':fetched_global_base_params};
 		this.dialog(params);
 	},
-	dialog:function(params){
+	dialog:function(params,callback){
 		var self = this;
 		self.popwin_params = params;
 		if(!self.popwin){
@@ -154,13 +154,21 @@ var window_helper = Base.extend({
 					args.params = self.popwin_params;
 					console.log('recv  ready  !!!');
 					self.popwin.webContents.send('asynchronous-popwin', args);
-				} else if('init' == args.tag){
-					console.log('recv  init  !!!');
+				} else if('init_ok' == args.tag){
+					// console.log('recv  init  !!!');
+					if(callback){
+						callback(self);
+					}
 				} else if('start_transfer' == args.tag){
 					var quota = args.quota;
 					var task = args.task;
 					console.log('start_transfer task:', task);
 					self.fetch_helper.transfer(task);
+				} else if('retry_transfer' == args.tag){
+					var quota = args.quota;
+					var task = args.task;
+					console.log('retry_transfer task:', task);
+					self.fetch_helper.transfer(task, true);
 				} else if('delete_task' == args.tag){
 					self.fetch_helper.del(args.task);
 				}
