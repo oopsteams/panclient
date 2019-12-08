@@ -383,11 +383,7 @@ if(ele_remote){
 				// console.log('rs:', rs);
 				if(rs){
 					if(rs.errno !=0 ){
-<<<<<<< HEAD
 						console.log('fetch_file_list_by_fid err rs:', rs);
-=======
-						console.log('fetch_file_list_by_fid rs:', rs);
->>>>>>> 25824c2f03261692762ec76c0b8b684312d87a09
 						setTimeout(function() {deep_call(pos);}, 500+100*retry_cnt);
 						retry_cnt += 1;
 					} else {
@@ -496,13 +492,9 @@ if(ele_remote){
 			var url = _build_get_url(path, params);
 			console.log('fetch_group_list url:', url);
 			baidu_api.get_req(url, (rs)=>{
-<<<<<<< HEAD
 				if(rs.errno!=0){
 					console.log('group list err rs:', rs);
 				}
-=======
-				console.log('rs:', rs);
->>>>>>> 25824c2f03261692762ec76c0b8b684312d87a09
 				if(callback){
 					callback(null, rs);
 				}
@@ -538,13 +530,9 @@ if(ele_remote){
 					retry_cnt = 0;
 				}
 				baidu_api.post_req(url, form_data, 'formdata', (rs)=>{
-<<<<<<< HEAD
 					if(rs.errno!=0){
 						console.log('transfer_file err rs:', rs);
 					}
-=======
-					console.log('rs:', rs);
->>>>>>> 25824c2f03261692762ec76c0b8b684312d87a09
 					if(callback){
 						callback(null, rs);
 					}
@@ -586,13 +574,9 @@ if(ele_remote){
 					retry_cnt = 0;
 				}
 				baidu_api.post_req(url, form_data, 'formdata', (rs)=>{
-<<<<<<< HEAD
 					if(rs.errno!=0){
 						console.log('create folder err rs:', rs);
 					}
-=======
-					console.log('rs:', rs);
->>>>>>> 25824c2f03261692762ec76c0b8b684312d87a09
 					if(callback){
 						callback(null, rs);
 					}
@@ -628,22 +612,14 @@ if(ele_remote){
 				num:cnt
 			};
 			var url = _build_get_url(path, params);
-<<<<<<< HEAD
-			// console.log('self_file_list url:', url);
-=======
-			console.log('self_file_list url:', url);
->>>>>>> 25824c2f03261692762ec76c0b8b684312d87a09
 			function re_call_fun(retry_cnt){
 				if(!retry_cnt){
 					retry_cnt = 0;
 				}
 				baidu_api.get_req(url, (rs)=>{
-<<<<<<< HEAD
 					if(rs.errno!=0){
 						console.log('file list err rs:', rs);
 					}
-=======
->>>>>>> 25824c2f03261692762ec76c0b8b684312d87a09
 					if(callback){
 						callback(null, rs);
 					}
@@ -674,24 +650,14 @@ if(ele_remote){
 				clienttype:ctype
 			};
 			var url = _build_get_url(path, params);
-<<<<<<< HEAD
-			// console.log('quota url:', url);
-=======
-			console.log('quota url:', url);
->>>>>>> 25824c2f03261692762ec76c0b8b684312d87a09
 			function re_call_fun(retry_cnt){
 				if(!retry_cnt){
 					retry_cnt = 0;
 				}
 				baidu_api.get_req(url, (rs)=>{
-<<<<<<< HEAD
-					// console.log('rs:', rs);
 					if(rs.errno!=0){
 						console.log('quota err rs:', rs);
 					}
-=======
-					console.log('rs:', rs);
->>>>>>> 25824c2f03261692762ec76c0b8b684312d87a09
 					if(callback){
 						callback(null, rs);
 					}
@@ -730,23 +696,14 @@ if(ele_remote){
 				clienttype:ctype
 			};
 			var url = _build_get_url(path, params);
-<<<<<<< HEAD
-			// console.log('shareinfo url:', url);
-=======
-			console.log('shareinfo url:', url);
->>>>>>> 25824c2f03261692762ec76c0b8b684312d87a09
 			function re_call_fun(retry_cnt){
 				if(!retry_cnt){
 					retry_cnt = 0;
 				}
 				baidu_api.get_req(url, (rs)=>{
-<<<<<<< HEAD
 					if(rs.errno!=0){
 						console.log('shareinfo err rs:', rs);
 					}
-=======
-					console.log('shareinfo rs:', rs);
->>>>>>> 25824c2f03261692762ec76c0b8b684312d87a09
 					if(callback){
 						callback(null, rs);
 					}
