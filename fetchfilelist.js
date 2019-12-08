@@ -567,7 +567,7 @@ var fetch_file_list_helper = Base.extend({
 							var re_call_update_file_pin=(pos)=>{
 								if(pos<fid_list.length){
 									var file_id = fid_list[pos];
-									console.log('update file_id pin = 3:', file_id);
+									// console.log('update file_id pin = 3:', file_id);
 									file_list_db.update_by_id(file_id, {'pin': 3}, ()=>{
 										re_call_update_file_pin(pos+1);
 									});
