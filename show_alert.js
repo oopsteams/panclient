@@ -1,15 +1,22 @@
 const {BrowserWindow} = require('electron')
 
 var alert_window = null;
-var createAlertWindow =(message, parent_win, callback) => {
+var createAlertWindow =(message, parent_win, callback, params) => {
+	var closable = true;
+	var ismodal = true;
+	if(params){
+		closable = params.hasOwnProperty('closable')?params.closable:true;
+		ismodal = params.hasOwnProperty('modal')?params.modal:true;
+	}
 	if(alert_window == null){
 		alert_window = new BrowserWindow({
 		  width: 400,
 		  height: 400,
 		  parent: parent_win,
-		  modal: true,
+		  modal: ismodal,
 		  show:false,
-		  frame: true
+		  frame: true,
+		  'closable':closable
 		});
 	}
 	alert_window.once('ready-to-show', () => {
@@ -28,14 +35,15 @@ var createAlertWindow =(message, parent_win, callback) => {
 	  }
 	});
 	alert_window.loadURL(`file://${__dirname}/empty.html`);
+	return alert_window;
 };
 
 var show_alert = {
-	show:function(message, parent_win, callback){
+	show:function(message, parent_win, callback, params){
 		if(!parent_win){
 			parent_win = BrowserWindow.getFocusedWindow();
 		}
-		createAlertWindow(message, parent_win, callback);
+		return createAlertWindow(message, parent_win, callback, params);
 	},
 };
 module.exports = show_alert

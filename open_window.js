@@ -3,34 +3,64 @@ const request = require('request');
 const urlib = require('url')
 const helpers = require("./helper.core.js")
 const Base = require("./base.js")
+const show_alert = require("./show_alert.js")
 const fetch_file_list_helper = require("./fetchfilelist.js")
 var path = require('path');
 const async = require('async');
 // const os = require('os');
 // var base_dir = os.homedir();
 var base_dir = __dirname;
+
 const url_mapping = {
 	// 'mbox/homepage':enter_social_group,
 	'mbox/homepage':inject_btn_group,
 	'disk/home':empty,
 }
+const manual_url_mapping = {
+	'mbox/homepage':enter_social_group,
+	'disk/home':disk_home
+}
 var fetched_global_base_params = {};
-function find_func(loc){
-	for(var key in url_mapping){
+function find_func(loc, _mapping){
+	if(!_mapping){
+		_mapping = url_mapping;
+	}
+	for(var key in _mapping){
 		if(loc.indexOf(key)>=0){
-			return url_mapping[key];
+			return _mapping[key];
 		}
 	}
 	return null;
 }
-function disk_home(){
-	this.win.webContents.send('asynchronous-spider', {tag:'find_share_btn'});
+function disk_home(params, task){
+	var gparams = params;
+	console.log('find_share_btn......');
+	this.win.webContents.send('asynchronous-spider', {tag:'find_share_btn','task':task, 'gparams':gparams});
 }
-function enter_social_group(){
+function enter_social_group(params, task){
+	// var tasks = params.tasks;
+	var gparams = params;
+	var gid = task.gid;
+	var gname = '';
+	var gphoto_href = null;
+	if(gparams.hasOwnProperty('group_list')){
+		var group_list = gparams.group_list;
+		if(group_list.records){
+			var records = group_list.records;
+			for(var i=0;i<records.length;i++){
+				var r = records[i];
+				if(r.gid == gid){
+					gname = r.name;
+					gphoto_href = r.photoinfo&&r.photoinfo.length>0?r.photoinfo[0].photo:null;
+					break;
+				}
+			}
+		}
+	}
 	this.win.webContents.send('asynchronous-spider', {tag:'find_group_btn', 
-	options:{'root':{'tag':'ul.session-list', 'attrs':{'node-type':'session-list'}},'parent':{'tag':'li.session-list-item', 'attrs':{'node-type':'session-list-item'}, 'child':{'tag':'p.user-name', 'attrs':{'title':'启墨学院【VIP】14群'}}},
+	options:{'root':{'tag':'ul.session-list', 'attrs':{'node-type':'session-list'}},'parent':{'tag':'li.session-list-item', 'attrs':{'node-type':'session-list-item'}, 'child':{'tag':'p.user-name', 'attrs':{'title':gname}}},
 	'attrs':{'node-type':'session-list-avatar'},
-	'tag':'a'},'folder_title':'02.会员库【已完结课程】'
+	'tag':'a'},'task':task, 'gparams':gparams
 	});
 }
 function inject_btn_group(){
@@ -107,7 +137,9 @@ var window_helper = Base.extend({
 		this.first_show = false;
 		this.fetch_helper = null;
 		this.popwin = null;
+		this.alertwin = null;
 		this.popwin_params = {};
+		this.wait_mbox_homepage_call_manual_fun = null;
 	},
 	update_statistic(task){
 		var self = this;
@@ -196,6 +228,8 @@ var window_helper = Base.extend({
 					self.fetch_helper.transfer(task, true);
 				} else if('delete_task' == args.tag){
 					self.fetch_helper.del(args.task);
+				} else if('retry_scan' == args.tag){
+					self.fetch_helper.retry_scan(args.task);
 				}
 			});
 		}else{
@@ -250,6 +284,11 @@ var window_helper = Base.extend({
 				var loc = args.loc;
 				console.log('loc:', loc);
 				var func = find_func(loc);
+				if(self.wait_mbox_homepage_call_manual_fun){
+					var man_func = find_func(loc, manual_url_mapping);
+					man_func.apply(self, self.wait_mbox_homepage_call_manual_fun);
+					self.wait_mbox_homepage_call_manual_fun = null;
+				}
 				if(func){
 					func.apply(self)
 				}
@@ -281,12 +320,60 @@ var window_helper = Base.extend({
 			} else if('to_start_transfer' == args.tag){//Test
 				var app_id = args.app_id;
 			} else if('dialog' == args.tag){
+				var loc = args.loc;
+				var func = find_func(loc, manual_url_mapping);
+				var tasks = args.params.tasks;
+				var gparams = args.params.gparams;
+				for(var j=0;j<tasks.length;j++){
+					var _t = tasks[j];
+					if([5, 9].indexOf(_t.pin)<0){
+						// goto file list
+						self.alertwin = show_alert.show("正在初始化!", self.win, (state)=>{
+							if('closed' == state){
+								setTimeout(()=>{
+									self.dialog(args.params);
+								},1);
+							}else if('ready' == state){
+								func.apply(self, [gparams, _t]);
+							}
+						},{'closable':true, 'modal':false})
+						
+						return;
+						
+					}
+				}
+				console.log('直接弹 转移任务 管理窗口');
 				self.dialog(args.params);
-			} else if('transfer_ok_continue' == args.tag){
+			} else if('find_share_btn_ok' == args.tag){
+				var loc = args.loc;
+				// var func = find_func(loc, manual_url_mapping);
+				var task = args.task;
+				var gparams = args.gparams;
+				console.log('ready to check next elem:', loc);
+				self.wait_mbox_homepage_call_manual_fun = [gparams, task];
+				// func.apply(self, [gparams, task]);
+			}else if('transfer_ok_continue' == args.tag){
 				self.fetch_helper.on_transfer_continue(args);
 			} else if('transfer_ok_continue_failed' == args.tag){
 				//TODO 
 				self.fetch_helper.on_transfer_continue(args, true);
+			} else if('init_page_ok' == args.tag){
+				if(self.alertwin){
+					self.alertwin.close();
+					self.alertwin = null;
+				}
+				// var gparams = args.gparams;
+				// self.fetch_helper.check_ready((tasks)=>{
+				// 	self.dialog({'tasks':tasks, 'gparams':gparams});
+				// });
+			} else if('scan_file_list_failed' == args.tag){
+				if(self.alertwin){
+					var script_val = 'document.write(\'<h1>'+args.msg+'</h1>\');';
+					self.alertwin.webContents.executeJavaScript(script_val).then((result)=>{
+						console.log('alert_window execute result:', result);
+					});
+					self.alertwin.setClosable(true);
+				}
 			}
 		});
 		if(this.first_show){

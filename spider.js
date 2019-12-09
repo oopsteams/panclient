@@ -3,6 +3,7 @@
 const ele_remote = require('electron').remote;
 const max_retry_cnt = 5;
 var inject_btn_group = false;
+var to_find_share_btn = false;
 if(ele_remote){
 	var helpers = {
 		isArray: function(value) {
@@ -95,6 +96,22 @@ if(ele_remote){
 	var ipcRenderer = require('electron').ipcRenderer;
 	var dialog = null;
 	var dialog_max_width = 450;
+	function get_shared_params(task){
+		var params = {};
+		if(global_base_params.hasOwnProperty('group_list')){
+			var group_list = global_base_params.group_list;
+			if(group_list.hasOwnProperty('records')){
+				var records = group_list.records;
+				for(var i=0;i<records.length;i++){
+					var si = records[i];
+					if(si.gid == task.gid){
+						
+						break;
+					}
+				}
+			}
+		}
+	}
 	ipcRenderer.on('asynchronous-spider', function(event, args){
 		// console.log("recv args:", args);
 		if('start'==args.tag){
@@ -112,20 +129,40 @@ if(ele_remote){
 				// target_map[key].click();
 			}
 		}else if('find_share_btn' == args.tag){
-			__stat_spider();
+			var task = args.task;
+			var gparams = args.gparams;
+			var options={'root':{'tag':'div.module-header-wrapper','attrs':{'node-type':'module-header-wrapper'}},'parent':{'tag':'span.cMEMEF', 'attrs':{'node-type':'mbox-homepage'}},'tag':'a','attrs':{'title':'分享','target':'_self','node-type':'item-title'}};
+			if(!to_find_share_btn){
+				to_find_share_btn = true;
+				setTimeout(()=>{
+					fetch_element_until_fetched(options, (elems)=>{
+						console.log('share button elems:', elems);
+						if(elems && elems.length>0){
+							ipcRenderer.send('asynchronous-spider-backend', {"tag":"find_share_btn_ok", "loc":document.location.href, 'task':task, 'gparams':gparams});
+							setTimeout(()=>{
+								// next_check(args, true)
+								elems[0].click();
+							}, 100);
+							
+						}
+					}, 0, true);
+				}, 300);
+			}
 		}else if('find_group_btn' == args.tag){
 			var options = args.options;
+			var task = args.task;
+			var gparams = args.gparams;
 			window._options = {};
 			helpers.extend(window._options, options);
 			console.log('_options:', _options);
 			setTimeout(()=>{
-				to_find_group_btn(options, (elems)=>{
+				fetch_element_until_fetched(options, (elems)=>{
 					console.log('group elems:', elems);
 					if(elems && elems.length>0){
 						elems[0].click();
-						setTimeout(()=>{next_check(args)}, 2000);
+						setTimeout(()=>{next_check_share_folder(args)}, 2000);
 					}
-				});
+				},0, true);
 			}, 300);
 		}else if('inject_btn_group' == args.tag){
 			var options = args.options;
@@ -187,7 +224,7 @@ if(ele_remote){
 						}
 						ipcRenderer.send('asynchronous-spider-backend', {"tag":"fetched_base_params", "params":global_base_params});
 						if(tasks && tasks.length>0){
-							ipcRenderer.send('asynchronous-spider-backend', {"tag":"dialog", "params":{'tasks':tasks, 'gparams':global_base_params}});
+							ipcRenderer.send('asynchronous-spider-backend', {"tag":"dialog", "params":{'tasks':tasks, 'gparams':global_base_params}, "loc":document.location.href});
 						}
 					});}, 100);
 					// dialog modal
@@ -198,7 +235,8 @@ if(ele_remote){
 		}else if('fetch_file_list_continue'==args.tag){
 			// console.log('deep_fetch_file_list_by_fid continue.');
 			var params = args.params, fid_list = args.fid_list, parent_dir = args.parent_dir, target_dir=args.target_dir, pos = args.pos;
-			deep_fetch_file_list_by_fid(fid_list, parent_dir, target_dir, params, pos);
+			var task = args.task;
+			deep_fetch_file_list_by_fid(fid_list, parent_dir, target_dir, params, pos, false);
 		}else if('fetch_file_list_complete'==args.tag){
 			// alert('文件分析完成!');
 		}else if('fetched_bd_context_ready' == args.tag){
@@ -226,8 +264,21 @@ if(ele_remote){
 			}
 		}else if('fetched_sub_file_list_continue' == args.tag){
 			var fid_list = args.fid_list, parent_dir = args.parent_dir, target_dir=args.target_dir;
+			var task = args.task;
 			console.log('fetched_sub_file_list_continue fid_list:', fid_list, ',parent_dir:', parent_dir);
-			deep_fetch_file_list_by_fid(fid_list, parent_dir, target_dir);
+			var params={
+				msgid:task.msg_id,
+				fromuk:task.from_uk, 
+				_gid:task.gid,
+				ftype:task.stype, 
+				bdtk:global_base_params.bdstoken, 
+				ch:global_base_params.channel, 
+				web_val:global_base_params.web[0], 
+				appid:global_base_params.app_id, 
+				ctype:global_base_params.clienttype, 
+				page:1
+			};
+			deep_fetch_file_list_by_fid(fid_list, parent_dir, target_dir, params, null, false);
 		}else if('check_self_dir' == args.tag){
 			var parent_item= args.parent_item, file=args.file, task= args.task;
 			var dir = args.dir;
@@ -306,21 +357,37 @@ if(ele_remote){
 		ipcRenderer.send('asynchronous-spider-backend', {"tag":"to_start_transfer", "app_id":global_base_params.app_id});
 	};
 	
-	function next_check(args){
-		var title_val = args.folder_title;
-				var __options={'root':{'tag':'div.all-content', 'attrs':{'node-type':'all-content'}},'parent':{'tag':'div.title[data-msgid]', 'attrs':{'title':title_val}},
-	'attrs':{'node-type':'file-name'},
-	'tag':'a.file-name'};
-				to_find_group_btn(__options, (elems)=>{
-					console.log('folder elems:', elems);
-					if(elems && elems.length>0){
-						elems[0].click();
-						// setTimeout(next_check_folder, 2000);
-						setTimeout(next_check_nav, 2000);
-						setTimeout(next_check_save_btn, 2000);
-					}
-				});
+	// function next_check(args){
+	// // 	var title_val = args.folder_title;
+	// // 			var __options={'root':{'tag':'div.all-content', 'attrs':{'node-type':'all-content'}},'parent':{'tag':'div.title[data-msgid]', 'attrs':{'title':title_val}},
+	// // 'attrs':{'node-type':'file-name'},
+	// // 'tag':'a.file-name'};
+	// 	var __options={'root':{'tag':'div.module-content-all'},'parent':{'tag':'div.file-factory', 'attrs':{'node-type':'file-factory'}},'tag':'span.button'};
+	// 	to_find_group_btn(__options, (elems)=>{
+	// 		console.log('folder elems:', elems);
+	// 		if(elems && elems.length>0){
+	// 			elems[0].click();
+	// 			// setTimeout(next_check_folder, 2000);
+	// 			// setTimeout(next_check_nav, 2000);
+	// 			// setTimeout(next_check_save_btn, 2000);
+	// 			setTimeout(()=>{
+	// 				ipcRenderer.send('asynchronous-spider-backend', {"tag":"init_page_ok", "gparams":global_base_params});
+	// 			},2000);
+	// 		}
+	// 	});
+	// }
+	function next_check_share_folder(args){
+		var options={'root':{'tag':'div.module-content-all'},'parent':{'tag':'div.file-factory', 'attrs':{'node-type':'file-factory'}},'tag':'span.button'};
+		fetch_element_until_fetched(options, (elems)=>{
+			console.log('next_check_share_folder elems:', elems);
+			if(elems && elems.length>0){
+				elems[0].click();
+				setTimeout(()=>{
+					ipcRenderer.send('asynchronous-spider-backend', {"tag":"init_page_ok", "gparams":global_base_params});
+				}, 2000);
 			}
+		}, 0, true);
+	}
 	
 	function next_check_folder(){
 				var __options={'root':{'tag':'div.sharelist-container', 'attrs':{'node-type':'sharelist-container'}},
@@ -410,8 +477,16 @@ if(ele_remote){
 				if(rs){
 					if(rs.errno !=0 ){
 						console.log('fetch_file_list_by_fid err rs:', rs);
-						setTimeout(function() {deep_call(pos);}, 500+100*retry_cnt);
+						if(rs.errno == -9){
+							// ipcRenderer.send('asynchronous-spider-backend', {"tag":"scan_file_list_failed", "params":params, "fid_list":fid_list, "parent_dir":parent_dir, "target_dir":target_dir, "pos":pos, "result":rs, "app_id":global_base_params.app_id, "task_name": task_name});
+						}
+						if(retry_cnt < 15){
+							setTimeout(function() {deep_call(pos);}, 500+100*retry_cnt);
+						} else {
+							ipcRenderer.send('asynchronous-spider-backend', {"tag":"scan_file_list_failed", "params":params, "fid_list":fid_list, "parent_dir":parent_dir, "target_dir":target_dir, "pos":pos, "result":rs, "app_id":global_base_params.app_id, "task_name": task_name, "msg":'扫描文件异常!'});
+						}
 						retry_cnt += 1;
+						
 					} else {
 						window.fetch_file_list_rs = rs;
 						if(rs.hasOwnProperty('records')){
@@ -785,40 +860,54 @@ if(ele_remote){
 	  }
 	  return {x:absolute_offset_left, y:absolute_offset_top};
 	}
-	window.__stat_spider=function(){
-		var elements = document.querySelectorAll('a[title=分享]');
-		var target_sa = null;
-		if(elements){
-			for(var i=0;i<elements.length;i++){
-				var sa = elements[i];
-				if(sa.getAttribute('node-type')=='item-title'){
-					window.target_sa=sa;
-					target_sa = sa;
-					var rect = getElementAbsoluteOffsetTop(sa);
-					rect.width = sa.offsetWidth;
-					rect.height = sa.offsetHeight;
-					console.log('rect:', rect);
-					var scrollX = (((t = document.documentElement) || (t = document.body.parentNode))
-					 && typeof t.scrollLeft == 'number' ? t : document.body).scrollLeft;
-					var scrollY = (((t = document.documentElement) || (t = document.body.parentNode))
-					 && typeof t.scrollTop == 'number' ? t : document.body).scrollTop;
-					 if(!scrollX)scrollX = 0;
-					 if(!scrollY)scrollY = 0;
-					 rect.x += scrollX;
-					 rect.y += scrollY;
+	// function check_share_btn(cb){
+	// 	var elements = document.querySelectorAll('a[title=分享]');
+	// 	if(elements){
+	// 		for(var i=0;i<elements.length;i++){
+	// 			var sa = elements[i];
+	// 			if(sa.getAttribute('node-type')=='item-title'){
+	// 				if(cb){
+	// 					cb(sa);
+	// 				}
+	// 				return;
+	// 			}
+	// 		}
+	// 	}
+	// }
+	// window.__stat_spider=function(){
+	// 	var elements = document.querySelectorAll('a[title=分享]');
+	// 	var target_sa = null;
+	// 	if(elements){
+	// 		for(var i=0;i<elements.length;i++){
+	// 			var sa = elements[i];
+	// 			if(sa.getAttribute('node-type')=='item-title'){
+	// 				window.target_sa=sa;
+	// 				target_sa = sa;
+	// 				var rect = getElementAbsoluteOffsetTop(sa);
+	// 				rect.width = sa.offsetWidth;
+	// 				rect.height = sa.offsetHeight;
+	// 				console.log('rect:', rect);
+	// 				var scrollX = (((t = document.documentElement) || (t = document.body.parentNode))
+	// 				 && typeof t.scrollLeft == 'number' ? t : document.body).scrollLeft;
+	// 				var scrollY = (((t = document.documentElement) || (t = document.body.parentNode))
+	// 				 && typeof t.scrollTop == 'number' ? t : document.body).scrollTop;
+	// 				 if(!scrollX)scrollX = 0;
+	// 				 if(!scrollY)scrollY = 0;
+	// 				 rect.x += scrollX;
+	// 				 rect.y += scrollY;
 					 
-					ipcRenderer.send('asynchronous-spider-backend', {"tag":"found","target":'shared'});
-					target_map['shared'] = sa;
-					// sa.click();
-					return;
-				}
-			}
-		}
+	// 				ipcRenderer.send('asynchronous-spider-backend', {"tag":"found","target":'shared'});
+	// 				target_map['shared'] = sa;
+	// 				// sa.click();
+	// 				return;
+	// 			}
+	// 		}
+	// 	}
 		
-		if(!target_sa){
-			setTimeout(__stat_spider, 1000);
-		}
-	}
+	// 	if(!target_sa){
+	// 		setTimeout(__stat_spider, 1000);
+	// 	}
+	// }
 	function check_attrs(attrs_keys, attrs, element){
 		for(var i=0;i<attrs_keys.length;i++){
 			var val = attrs[attrs_keys[i]];

@@ -19,7 +19,7 @@ if(ele_remote){
 	var _id_reg = new RegExp("_id_", "g");
 	var _title_reg = new RegExp("_title_tips_", "g");
 	var _title_show_reg = new RegExp("_title_show_", "g");
-	var item_format = '<div id="_id__h"><table width="100%" class="gridtable"><tr id="_id__tr"><td style="width:280px;"><div style="width:280px;text-overflow:ellipsis;overflow:hidden;white-space:nowrap;" title="_title_tips_">_title_show_</div></td><td><div id="_id__progressbar" title="_title_tips_"></div></td><td width="60px" id="_id__speed"></td><td width="40px"><button id="_id__btn">&nbsp;</button></td><td width="40px"><button id="_id__act_btn">&nbsp;</button></td><td width="10px"><button id="_id__one_by_one_btn">OneByOne</button></td></tr></table></div><div id="_id__sub_container" class="desc">&nbsp;</div>';
+	var item_format = '<div id="_id__h"><table width="100%" class="gridtable"><tr id="_id__tr"><td style="width:280px;"><div style="width:280px;text-overflow:ellipsis;overflow:hidden;white-space:nowrap;" title="_title_tips_">_title_show_</div></td><td><div id="_id__progressbar" title="_title_tips_"></div></td><td width="60px" id="_id__speed"></td><td width="40px"><button id="_id__btn">&nbsp;</button><button id="_id__resume_breakpoint_btn">&nbsp;</button></td><td width="40px"><button id="_id__act_btn">&nbsp;</button></td><td width="10px"><button id="_id__one_by_one_btn">OneByOne</button></td></tr></table></div><div id="_id__sub_container" class="desc">&nbsp;</div>';
 	
 	var ipcRenderer = require('electron').ipcRenderer;
 	ipcRenderer.on('asynchronous-popwin', function(event, args){
@@ -151,6 +151,11 @@ if(ele_remote){
 			one_by_one_btn.attr("title","逐个文件方式继续下载");
 			one_by_one_btn.button({icon: "ui-icon-arrowthickstop-1-s", showLabel: true});
 			one_by_one_btn.hide();
+			var resume_breakpoint_btn = $('#'+item_id+'_resume_breakpoint_btn');
+			resume_breakpoint_btn[0].context = _t;
+			resume_breakpoint_btn.attr("title","从断点处继续扫描");
+			resume_breakpoint_btn.button({icon: "ui-icon-play", showLabel: false});
+			resume_breakpoint_btn.hide();
 			var btn = $('#'+item_id+'_btn');
 			btn[0].context = _t;
 			btn.html("继续下载");
@@ -173,6 +178,12 @@ if(ele_remote){
 				}
 				btn.hide();
 			});
+			act_btn.on("click", function(event){
+				var context=event.currentTarget.context;
+				var pin = context.pin;
+				console.log('act_btn pin:', pin);
+				ipcRenderer.send('asynchronous-popwin-backend', {"tag":"delete_task", "task":context});
+			});
 			one_by_one_btn.on("click", function(event){
 				var context=event.currentTarget.context;
 				var pin = context.pin;
@@ -181,6 +192,15 @@ if(ele_remote){
 				one_by_one_btn.hide();
 				btn.hide();
 			});
+			resume_breakpoint_btn.on("click", function(event){
+				var context=event.currentTarget.context;
+				var pin = context.pin;
+				console.log('to hide resume_breakpoint_btn');
+				resume_breakpoint_btn.hide();
+				context.hide_resume=true;
+				ipcRenderer.send('asynchronous-popwin-backend', {"tag":"retry_scan", "task":context});
+				
+			});
 			if([0,9].indexOf(_t.pin)>=0){
 				btn.hide();
 				act_btn.hide();
@@ -188,7 +208,15 @@ if(ele_remote){
 				var h_desc = '转存任务已删除!';
 				if(_t.pin == 9){
 				} else if(_t.pin == 0){
-					h_desc = '继续扫描文件!';
+					h_desc = '断点信息不完整无法继续扫描文件,重新选择分享分析!';
+					if(_t.hasOwnProperty('resume_breakpoint') && _t.resume_breakpoint){
+						if(!_t.hasOwnProperty('hide_resume') || !_t.hide_resume){
+							resume_breakpoint_btn.show();
+							console.log('to show resume_breakpoint_btn');
+							h_desc = '点击开始按钮可以继续扫描文件!';
+							act_btn.show();
+						}
+					}
 				}
 				$("#"+item_id+"_progressbar").html(h_desc);
 			} else {
@@ -198,6 +226,7 @@ if(ele_remote){
 					one_by_one_btn.hide();
 				}
 			}
+			update_task_desc(_t);
 		}
 		
 	}
@@ -208,12 +237,7 @@ if(ele_remote){
 		act_btn[0].context = task;
 		var btn = $('#'+item_id+'_btn');
 		btn[0].context = task;
-		act_btn.on("click", function(event){
-			var context=event.currentTarget.context;
-			var pin = context.pin;
-			console.log('act_btn pin:', pin);
-			ipcRenderer.send('asynchronous-popwin-backend', {"tag":"delete_task", "task":context});
-		});
+		
 		act_btn.show();
 		btn.show();
 		var val = 0;
@@ -237,7 +261,6 @@ if(ele_remote){
 			_progressbar.progressbar("option",{value:val});
 			$('#'+item_id+'_speed').html(val+'%');
 		}
-		update_task_desc(task);
 	}
 	function update_task_desc(task){
 		var _t = task;

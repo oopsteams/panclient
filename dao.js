@@ -364,6 +364,24 @@ var Dao = Base.extend(
 			});
 			
 		},
+		query_by_raw_sql:function(sql, cb){
+			var ithis = this;
+			if(sql){
+				ithis.db.all(sql, (err, rows)=>{
+					if(err != null){
+						console.log("err, query_by_raw_sql:",sql);
+						throw err;
+					}
+					if(cb){
+						cb(rows);
+					}
+				});
+			} else {
+				if(cb){
+					cb([]);
+				}
+			}
+		},
 		query_start_with_params:function(params, cb, size, offset){
 			var ithis = this;
 			var where_str = '';
