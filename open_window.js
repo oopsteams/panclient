@@ -373,6 +373,16 @@ var window_helper = Base.extend({
 						console.log('alert_window execute result:', result);
 					});
 					self.alertwin.setClosable(true);
+				} else {
+					show_alert.show(args.msg, self.win, (state)=>{
+						if('closed' == state){
+							setTimeout(()=>{
+								self.dialog(args.params);
+							},1);
+						}else if('ready' == state){
+							func.apply(self, [gparams, _t]);
+						}
+					},{'closable':true, 'modal':false})
 				}
 			}
 		});

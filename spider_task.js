@@ -76,7 +76,7 @@ if(ele_remote){
 			
 		} else if('statistic' == args.tag){
 			var task = args.task,gparams = args.gparams;
-			console.log('statistic args:', args);
+			// console.log('statistic args:', args);
 			var item_id = task.id;
 			var pin = task.pin;
 			var tr = $("#"+item_id+'_tr');
@@ -183,7 +183,7 @@ if(ele_remote){
 				var pin = context.pin;
 				console.log('act_btn pin:', pin);
 				ipcRenderer.send('asynchronous-popwin-backend', {"tag":"delete_task", "task":context});
-			});
+			// });
 			one_by_one_btn.on("click", function(event){
 				var context=event.currentTarget.context;
 				var pin = context.pin;
@@ -270,10 +270,12 @@ if(ele_remote){
 		var total_size = 0, dirnum=0, num=0, over_count=0;
 		if(_t.hasOwnProperty('total_size')){
 			total_size = _t.total_size;
-			if(task_desc.length>0){
-				task_desc += ',';
+			if(total_size){
+				if(task_desc.length>0){
+					task_desc += ',';
+				}
+				task_desc += "[总容量:"+scale_size(total_size)+"]"
 			}
-			task_desc += "[总容量:"+scale_size(total_size)+"]"
 		}
 		if(_t.hasOwnProperty('dirnum')){
 			dirnum = _t.dirnum;

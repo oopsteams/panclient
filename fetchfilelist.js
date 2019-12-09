@@ -457,7 +457,7 @@ var fetch_file_list_helper = Base.extend({
 	check_out_task:function(params, parent_dir, target_dir, app_id, cb, has_records, task_name){
 		var self = this;
 		var path = parent_dir.join('/');
-		var key = ''+app_id+'_'+path;
+		var key = ''+app_id+'_'+path+'_'+task_name+'_'+target_dir;
 		var msgid = params.msgid;
 		var fromuk = params.fromuk;
 		var _gid = params._gid;
@@ -571,7 +571,7 @@ var fetch_file_list_helper = Base.extend({
 			}
 		});
 	},
-	_check_sub_file:function(app_id, task_id, parent_dir, target_dir, last_fid_list, _task){
+	_check_sub_file:function(app_id, task_id, parent_dir, target_dir, last_fid_list, _task, params){
 		var self = this;
 		var sender = this.context.win.webContents;
 		var fid_list = last_fid_list;
@@ -599,7 +599,7 @@ var fetch_file_list_helper = Base.extend({
 							_task.pin = 1;
 							self.context.update_statistic(_task);
 							sender.send('asynchronous-spider',{'tag':'fetch_file_list_complete', 'params':params,
-								'fid_list': fid_list, 'parent_dir': parent_dir, 'target_dir': target_dir, 'pos': pos
+								'fid_list': fid_list, 'parent_dir': parent_dir, 'target_dir': target_dir
 							});
 							self.check_ready((tasks)=>{
 								self.context._dialog(tasks);
@@ -627,7 +627,7 @@ var fetch_file_list_helper = Base.extend({
 			if(result.errno!=0){
 				console.log('on_fetched error result:', result);
 			}
-			if(result.errno == 0){
+			if(result.errno == 0 || result.errno == -9){
 				if(has_records){
 					self.context.check_open_popwin((popwin)=>{
 						if(!popwin){
@@ -704,7 +704,7 @@ var fetch_file_list_helper = Base.extend({
 								} else {
 									setTimeout(()=>{
 										// check_sub_file(item.id);
-										self._check_sub_file(app_id, task_id, parent_dir, target_dir, fid_list, _task);
+										self._check_sub_file(app_id, _task.id, parent_dir, target_dir, fid_list, _task, params);
 									}, 200);
 									return;
 								}

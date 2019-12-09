@@ -236,7 +236,7 @@ if(ele_remote){
 			// console.log('deep_fetch_file_list_by_fid continue.');
 			var params = args.params, fid_list = args.fid_list, parent_dir = args.parent_dir, target_dir=args.target_dir, pos = args.pos;
 			var task = args.task;
-			deep_fetch_file_list_by_fid(fid_list, parent_dir, target_dir, params, pos, false);
+			deep_fetch_file_list_by_fid(fid_list, parent_dir, target_dir, params, pos, false, task.name);
 		}else if('fetch_file_list_complete'==args.tag){
 			// alert('文件分析完成!');
 		}else if('fetched_bd_context_ready' == args.tag){
@@ -278,7 +278,7 @@ if(ele_remote){
 				ctype:global_base_params.clienttype, 
 				page:1
 			};
-			deep_fetch_file_list_by_fid(fid_list, parent_dir, target_dir, params, null, false);
+			deep_fetch_file_list_by_fid(fid_list, parent_dir, target_dir, params, null, false, task.name);
 		}else if('check_self_dir' == args.tag){
 			var parent_item= args.parent_item, file=args.file, task= args.task;
 			var dir = args.dir;
@@ -447,7 +447,7 @@ if(ele_remote){
 		}
 		return parent_dirs;
 	}
-	function deep_fetch_file_list_by_fid(fid_list, parent_dir, target_dir, params, pos, first_layer){
+	function deep_fetch_file_list_by_fid(fid_list, parent_dir, target_dir, params, pos, first_layer, task_name){
 		if(!pos){
 			pos = 0;
 		}
@@ -477,20 +477,27 @@ if(ele_remote){
 				if(rs){
 					if(rs.errno !=0 ){
 						console.log('fetch_file_list_by_fid err rs:', rs);
+						var skip = false;
 						if(rs.errno == -9){
 							// ipcRenderer.send('asynchronous-spider-backend', {"tag":"scan_file_list_failed", "params":params, "fid_list":fid_list, "parent_dir":parent_dir, "target_dir":target_dir, "pos":pos, "result":rs, "app_id":global_base_params.app_id, "task_name": task_name});
+							if(retry_cnt >= 2){
+								retry_cnt = 0;
+								skip = true;
+								ipcRenderer.send('asynchronous-spider-backend', {"tag":"fetched_file_list", "params":params, "fid_list":fid_list, "parent_dir":parent_dir, "target_dir":target_dir, "pos":pos, "result":rs, "app_id":global_base_params.app_id, "task_name": task_name});
+								// setTimeout(function() {deep_call(pos+1);}, 500+100*retry_cnt);
+							}
 						}
-						if(retry_cnt < 15){
-							setTimeout(function() {deep_call(pos);}, 500+100*retry_cnt);
-						} else {
-							ipcRenderer.send('asynchronous-spider-backend', {"tag":"scan_file_list_failed", "params":params, "fid_list":fid_list, "parent_dir":parent_dir, "target_dir":target_dir, "pos":pos, "result":rs, "app_id":global_base_params.app_id, "task_name": task_name, "msg":'扫描文件异常!'});
+						if(!skip){
+							if(retry_cnt < 15){
+								setTimeout(function() {deep_call(pos);}, 500+100*retry_cnt);
+							} else {
+								ipcRenderer.send('asynchronous-spider-backend', {"tag":"scan_file_list_failed", "params":params, "fid_list":fid_list, "parent_dir":parent_dir, "target_dir":target_dir, "pos":pos, "result":rs, "app_id":global_base_params.app_id, "task_name": task_name, "msg":'扫描文件异常!'});
+							}
+							retry_cnt += 1;
 						}
-						retry_cnt += 1;
-						
 					} else {
 						window.fetch_file_list_rs = rs;
 						if(rs.hasOwnProperty('records')){
-							var task_name = "";
 							if(first_layer){
 								var records = rs.records;
 								if(records.length>0){
@@ -518,6 +525,7 @@ if(ele_remote){
 							}
 							ipcRenderer.send('asynchronous-spider-backend', {"tag":"fetched_file_list", "params":params, "fid_list":fid_list, "parent_dir":parent_dir, "target_dir":target_dir, "pos":pos, "result":rs, "app_id":global_base_params.app_id, "task_name": task_name});
 						} else {
+							retry_cnt = 0;
 							setTimeout(function() {deep_call(pos+1);}, 500+100*retry_cnt);
 						}
 					}
