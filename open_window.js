@@ -285,7 +285,7 @@ var window_helper = Base.extend({
 				var loc = args.loc;
 				console.log('loc:', loc);
 				var func = find_func(loc);
-				if(self.wait_mbox_homepage_call_manual_fun){
+				if(self.wait_mbox_homepage_call_manual_fun&&loc.indexOf('mbox/homepage')>=0){
 					console.log('wait_mbox_homepage_call_manual_fun:', loc);
 					var man_func = find_func(loc, manual_url_mapping);
 					man_func.apply(self, self.wait_mbox_homepage_call_manual_fun);
@@ -336,6 +336,7 @@ var window_helper = Base.extend({
 									self.dialog(args.params);
 								},1);
 							}else if('ready' == state){
+								self.wait_mbox_homepage_call_manual_fun = [gparams, _t];
 								func.apply(self, [gparams, _t]);
 							}
 						},{'closable':true, 'modal':false})
@@ -356,7 +357,7 @@ var window_helper = Base.extend({
 					var func = find_func(loc, manual_url_mapping);
 					func.apply(self, [gparams, task]);
 				} else {
-					self.wait_mbox_homepage_call_manual_fun = [gparams, task];
+					// self.wait_mbox_homepage_call_manual_fun = [gparams, task];
 				}
 				// func.apply(self, [gparams, task]);
 			}else if('transfer_ok_continue' == args.tag){

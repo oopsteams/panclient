@@ -127,18 +127,17 @@ var fetch_file_list_helper = Base.extend({
 		var task_id = task.id;
 		folder_file.size = 0;
 		folder_file.total = 0;
-		get_count(folder_file,[folder_file], 0, (may_bulk, main_folder_file)=>{
-			if(out_cb){
-				out_cb(may_bulk, main_folder_file);
-			}
-		});
+		
 		var get_count=(main_folder_file, sub_folders, pos, callback)=>{
 			if(pos>=sub_folders.length){
+				console.log('pos >= length:',pos, sub_folders.length);
 				callback(true, main_folder_file);
 				return;
 			}
-			if(main_folder_file.size > transfer_bulk_size){
+			console.log('main_folder_file.total > transfer_bulk_size',main_folder_file.total,transfer_bulk_size);
+			if(main_folder_file.total > transfer_bulk_size){
 				//callback can not bulk
+				console.log('main_folder_file.total > transfer_bulk_size');
 				callback(false, main_folder_file);
 			} else {
 				var __folder_file = sub_folders[pos];
@@ -147,6 +146,7 @@ var fetch_file_list_helper = Base.extend({
 					var total_cnt = cnt_row.cnt;
 					if(total_cnt>transfer_bulk_size){
 						//callback can not bulk
+						console.log('total_cnt > transfer_bulk_size');
 						callback(false, main_folder_file);
 						return;
 					} else {
@@ -155,21 +155,22 @@ var fetch_file_list_helper = Base.extend({
 							var file_cnt = fcnt_row.cnt;
 							
 							if(total_cnt > file_cnt){
-								file_list_db.query_count({'app_id': app_id, 'task_id':task_id, 'parent':__folder_file.id, 'pin':0},(all_fcnt_row)=>{
+								file_list_db.query_count({'app_id': app_id, 'task_id':task_id, 'parent':__folder_file.id, 'isdir':1, 'pin':3},(all_fcnt_row)=>{
 									var file_folder_cnt = all_fcnt_row.cnt;
-									if(file_folder_cnt == file_cnt){//have folder pin not equal 0
+									if(file_folder_cnt == 0){//have folder pin not equal 0
 										//callback can not bulk
+										console.log('file_folder_cnt == total_cnt,have folder pin not equal 0');
 										callback(false, main_folder_file);
-									} else if(file_folder_cnt == total_cnt){
+									} else if(file_folder_cnt+file_cnt == total_cnt){
 										//recursive count
-										main_folder_file.total += 
 										query_sub_folders(__folder_file.id, task_id, app_id, (_sub_folders)=>{
 											update_size_count(__folder_file.id, task_id, app_id,(sub_size)=>{
 												main_folder_file.total += file_cnt;
 												main_folder_file.size += sub_size;
+												console.log('recursive to fetch sub folder:', _sub_folders);
 												get_count(main_folder_file, _sub_folders, 0, (come_on, _main_folder_file)=>{
 													if(come_on){
-														get_count=(main_folder_file, sub_folders, pos+1, callback);
+														get_count(main_folder_file, sub_folders, pos+1, callback);
 													} else {
 														callback(false, main_folder_file);
 													}
@@ -179,17 +180,19 @@ var fetch_file_list_helper = Base.extend({
 										
 									} else {//part file&folder pin not equal 0
 										//callback can not bulk
+										console.log('file_folder_cnt != total_cnt');
 										callback(false, main_folder_file);
 									}
 								});
 							} else {
 								// total_cnt size
+								console.log('total_cnt == file_cnt, will update_size_count:',file_cnt, total_cnt);
 								update_size_count(__folder_file.id, task_id, app_id,(sub_size)=>{
 									main_folder_file.total += file_cnt;
 									main_folder_file.size += sub_size;
 									// get_count=(main_folder_file, sub_folders, pos+1, callback);
 									
-									get_count=(main_folder_file, sub_folders, pos+1, callback);
+									get_count(main_folder_file, sub_folders, pos+1, callback);
 								});
 							}
 						});
@@ -208,7 +211,7 @@ var fetch_file_list_helper = Base.extend({
 			});
 		};
 		var query_sub_folders=(parent_id, task_id, app_id, cb)=>{
-			file_list_db.query_mult_params({'task_id': task_id, 'app_id': app_id, 'parent':parent_id, 'isdir':1, 'pin': 0}, (_sub_folders)=>{
+			file_list_db.query_mult_params({'task_id': task_id, 'app_id': app_id, 'parent':parent_id, 'isdir':1}, (_sub_folders)=>{
 				if(cb){
 					if(_sub_folders && _sub_folders.length>0){
 						cb(_sub_folders);
@@ -218,6 +221,11 @@ var fetch_file_list_helper = Base.extend({
 				}
 			});
 		};
+		get_count(folder_file,[folder_file], 0, (may_bulk, main_folder_file)=>{
+			if(out_cb){
+				out_cb(may_bulk, main_folder_file);
+			}
+		});
 	},
 	fetch_sub_file_list:function(task, parent_item){
 		var self = this;
