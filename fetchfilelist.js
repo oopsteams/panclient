@@ -142,7 +142,7 @@ var fetch_file_list_helper = Base.extend({
 					var total_cnt = cnt_row.cnt;
 					if(total_cnt>transfer_bulk_size || total_cnt == 0){
 						//callback can not bulk
-						console.log('total_cnt > transfer_bulk_size');
+						console.log('total_cnt > transfer_bulk_size or total_cnt is 0:', total_cnt);
 						callback(false, main_folder_file);
 						return;
 					} else {
