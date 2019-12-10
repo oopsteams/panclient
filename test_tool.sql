@@ -11,5 +11,6 @@ select a.id, a.filename, b.id, b.filename, a.size, a.path from file_list a, file
 
 select id,name from transfer_tasks;
 
+select * from file_list where task_id= and parent=
 delete from file_list where task_id= and parent=
 delete from file_list where task_id= and id=
