@@ -140,6 +140,7 @@ var window_helper = Base.extend({
 		this.alertwin = null;
 		this.popwin_params = {};
 		this.wait_mbox_homepage_call_manual_fun = null;
+		this.last_web_uid = {};
 	},
 	update_statistic(task){
 		var self = this;
@@ -279,11 +280,27 @@ var window_helper = Base.extend({
 			console.log('will send spider start!');
 		    self.win.webContents.send('asynchronous-spider', {tag:'start', 'params': fetched_global_base_params, 'base_dir':base_dir});
 		  });
+		
 		ipcMain.on('asynchronous-spider-backend', (event, args) => {
 			// console.log('ipcMain backend recv event:%s, args:%s', event, args);
 			if('check_loc'==args.tag){
 				var loc = args.loc;
+				var uid = args.uid;
 				console.log('loc:', loc);
+				var simple_loc = loc;
+				var idx = loc.indexOf('#');
+				if(idx>0){
+					simple_loc = loc.substring(0, idx);
+				}
+				idx = simple_loc.indexOf('?');
+				if(idx>0){
+					simple_loc = loc.substring(0, idx);
+				}
+				if(this.last_web_uid[simple_loc] != uid){
+					this.last_web_uid[simple_loc] = uid;
+				} else {
+					return;
+				}
 				var func = find_func(loc);
 				if(self.wait_mbox_homepage_call_manual_fun&&loc.indexOf('mbox/homepage')>=0){
 					console.log('wait_mbox_homepage_call_manual_fun:', loc);

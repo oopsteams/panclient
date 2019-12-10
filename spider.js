@@ -116,6 +116,7 @@ if(ele_remote){
 			}
 		}
 	}
+	var tm_id = Date.now()+'_'+Math.round(Math.random()*1000);
 	ipcRenderer.on('asynchronous-spider', function(event, args){
 		// console.log("recv args:", args);
 		if('start'==args.tag){
@@ -123,7 +124,7 @@ if(ele_remote){
 			if(args.params){
 				helpers.extend(global_base_params, args.params);
 			}
-			setTimeout(()=>{ipcRenderer.send('asynchronous-spider-backend', {"tag":"check_loc", "loc":document.location.href});},500);
+			setTimeout(()=>{ipcRenderer.send('asynchronous-spider-backend', {"tag":"check_loc", "loc":document.location.href, 'uid':tm_id});},500);
 			// init_widget(base_dir);
 			// window.__stat_spider();
 		}else if('click' == args.tag){
@@ -354,6 +355,7 @@ if(ele_remote){
 			alert('文件转存完成!');
 		}
 	});
+	setTimeout(()=>{ipcRenderer.send('asynchronous-spider-backend', {"tag":"check_loc", "loc":document.location.href, 'uid':tm_id});},2000);
 
 	function init_widget(){
 		

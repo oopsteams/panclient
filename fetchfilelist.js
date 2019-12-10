@@ -96,17 +96,12 @@ var fetch_file_list_helper = Base.extend({
 			}
 		}, 1);
 	},
-	recursive_update_folder_file:function(task, file){
-		var self = this;
-		var app_id = task.app_id;
-		var task_id = task.id;
-	},
 	test_recursive:function(task_id, folder_id){
 		var self = this;
 		transfer_tasks_db.query_mult_params({'id': task_id}, (tasks)=>{
 			if(tasks&&tasks.length>0){
 				var _t = tasks[0];
-				file_list_db.query_mult_params({'task_id': task_id, 'app_id': _t.app_id, 'id':folder_id, 'isdir':1}, (_folders)=>{
+				file_list_db.query_mult_params({'task_id': task_id, 'app_id': _t.app_id, 'id':folder_id}, (_folders)=>{
 					console.log(_folders);
 					if(_folders&&_folders.length>0){
 						var ff = _folders[0];
@@ -121,13 +116,14 @@ var fetch_file_list_helper = Base.extend({
 			}
 		});
 	},
+	
 	recursive_count_folder_file:function(task, folder_file, out_cb){
 		var self = this;
 		var app_id = task.app_id;
 		var task_id = task.id;
 		folder_file.size = 0;
 		folder_file.total = 0;
-		
+		folder_file.sub_folders = [];
 		var get_count=(main_folder_file, sub_folders, pos, callback)=>{
 			if(pos>=sub_folders.length){
 				console.log('pos >= length:',pos, sub_folders.length);
@@ -144,7 +140,7 @@ var fetch_file_list_helper = Base.extend({
 				file_list_db.query_count({'app_id': app_id, 'task_id':task_id, 'parent':__folder_file.id},(cnt_row)=>{
 					
 					var total_cnt = cnt_row.cnt;
-					if(total_cnt>transfer_bulk_size){
+					if(total_cnt>transfer_bulk_size || total_cnt == 0){
 						//callback can not bulk
 						console.log('total_cnt > transfer_bulk_size');
 						callback(false, main_folder_file);
@@ -164,12 +160,14 @@ var fetch_file_list_helper = Base.extend({
 									} else if(file_folder_cnt+file_cnt == total_cnt){
 										//recursive count
 										query_sub_folders(__folder_file.id, task_id, app_id, (_sub_folders)=>{
+											
 											update_size_count(__folder_file.id, task_id, app_id,(sub_size)=>{
 												main_folder_file.total += file_cnt;
 												main_folder_file.size += sub_size;
-												console.log('recursive to fetch sub folder:', _sub_folders);
+												// console.log('recursive to fetch sub folder:', _sub_folders);
 												get_count(main_folder_file, _sub_folders, 0, (come_on, _main_folder_file)=>{
 													if(come_on){
+														_sub_folders.forEach((sf, index)=>{main_folder_file.sub_folders.push(sf)});
 														get_count(main_folder_file, sub_folders, pos+1, callback);
 													} else {
 														callback(false, main_folder_file);
@@ -239,12 +237,41 @@ var fetch_file_list_helper = Base.extend({
 		if(parent_item.pin != 4){
 			file_list_db.update_by_id(parent_item.id, {'pin': 4, 'tm':helpers.now()}, function(){
 				parent_item.pin = 4;
-				check_bulk_conditions();
+				new_check_bulk_conditions();
 			});
 		} else {
-			check_bulk_conditions();
+			new_check_bulk_conditions();
 		}
-		
+		function recursive_update_folder_sub_file(pos, folders, cb){
+			if(pos<folders.length){
+				var folder = folders[pos];
+				file_list_db.update_by_id(folder.id, {'pin': 4, 'tm':helpers.now()}, function(){
+					folder.pin = 4;
+					file_list_db.update_by_conditions({'parent':folder.id, 'task_id':task_id, 'isdir':0}, {'pin': 2}, function(){
+						recursive_update_folder_sub_file(pos+1, folders, cb);
+					});
+				});
+			} else {
+				if(cb){
+					cb();
+				}
+			}
+		}
+		function new_check_bulk_conditions(){
+			self.recursive_count_folder_file(task, parent_item, (may_bulk, main_folder)=>{
+				if(may_bulk){
+					recursive_update_folder_sub_file(0, main_folder.sub_folders.concat([main_folder]),()=>{
+						setTimeout(()=>{
+							sender.send('asynchronous-spider', {'tag':'start_transfer', 'parent_item': parent_item, 'file':parent_item, 'task': task});
+						}, 100);
+					});
+				} else {
+					one_by_one();
+				}
+				// console.log('main_folder:',main_folder);
+				
+			});
+		}
 		
 		function check_bulk_conditions(){
 			file_list_db.query_count({'app_id': app_id, 'task_id':task_id, 'parent':parent_item.id},(cnt_row)=>{
@@ -329,6 +356,22 @@ var fetch_file_list_helper = Base.extend({
 	on_transfer_continue:function(args, failed){
 		var self = this;
 		var parent_item= args.parent_item, file=args.file, task= args.task;
+		var task_id = task.id;
+		function recursive_update_folder_sub_file(pos, folders, cb){
+			if(pos<folders.length){
+				var folder = folders[pos];
+				file_list_db.update_by_id(folder.id, {'pin': 5, 'tm':helpers.now()}, function(){
+					folder.pin = 5;
+					file_list_db.update_by_conditions({'parent':folder.id, 'task_id':task_id, 'isdir':0}, {'pin': 5}, function(){
+						recursive_update_folder_sub_file(pos+1, folders, cb);
+					});
+				});
+			} else {
+				if(cb){
+					cb();
+				}
+			}
+		}
 		if(file.isdir == 1){
 			// console.log('bulk transfer file:', file.path);
 			if(failed){
@@ -339,23 +382,38 @@ var fetch_file_list_helper = Base.extend({
 				self.transfer(task);
 				return;
 			} else {
-				file_list_db.update_by_conditions({'parent':file.id,'task_id':task.id}, {'pin': 5}, function(){
-					file_list_db.update_by_id(file.id, {'pin': 5}, function(){
-						// console.log('dir tranfer ok!:', file.path);
-						if(file.hasOwnProperty('total')){
-							var cnt = file['total'];
-							if(task.hasOwnProperty('over_count')){
-								task['over_count'] = task['over_count'] + cnt;
-								self.context.popwin_send({'tag':'progress',
-									'id': task.id,
-									'over': task['over_count'] == task['total_count'],
-									'task': task
-								});
-							}
+				console.log('recursive_update_folder_sub_file folder:', file);
+				recursive_update_folder_sub_file(0, file.sub_folders.concat([file]),()=>{
+					if(file.hasOwnProperty('total')){
+						var cnt = file['total'];
+						if(task.hasOwnProperty('over_count')){
+							task['over_count'] = task['over_count'] + cnt;
+							self.context.popwin_send({'tag':'progress',
+								'id': task.id,
+								'over': task['over_count'] == task['total_count'],
+								'task': task
+							});
 						}
-						self.transfer(task);
-					});
+					}
+					self.transfer(task);
 				});
+				// file_list_db.update_by_conditions({'parent':file.id,'task_id':task.id}, {'pin': 5}, function(){
+				// 	file_list_db.update_by_id(file.id, {'pin': 5}, function(){
+				// 		// console.log('dir tranfer ok!:', file.path);
+				// 		if(file.hasOwnProperty('total')){
+				// 			var cnt = file['total'];
+				// 			if(task.hasOwnProperty('over_count')){
+				// 				task['over_count'] = task['over_count'] + cnt;
+				// 				self.context.popwin_send({'tag':'progress',
+				// 					'id': task.id,
+				// 					'over': task['over_count'] == task['total_count'],
+				// 					'task': task
+				// 				});
+				// 			}
+				// 		}
+				// 		self.transfer(task);
+				// 	});
+				// });
 			}
 		} else {
 			if(failed){
