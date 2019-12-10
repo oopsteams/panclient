@@ -226,6 +226,7 @@ var window_helper = Base.extend({
 					var task = args.task;
 					console.log('retry_transfer task:', task);
 					self.fetch_helper.transfer(task, true);
+					
 				} else if('delete_task' == args.tag){
 					self.fetch_helper.del(args.task);
 				} else if('retry_scan' == args.tag){
@@ -285,6 +286,7 @@ var window_helper = Base.extend({
 				console.log('loc:', loc);
 				var func = find_func(loc);
 				if(self.wait_mbox_homepage_call_manual_fun){
+					console.log('wait_mbox_homepage_call_manual_fun:', loc);
 					var man_func = find_func(loc, manual_url_mapping);
 					man_func.apply(self, self.wait_mbox_homepage_call_manual_fun);
 					self.wait_mbox_homepage_call_manual_fun = null;
@@ -350,9 +352,20 @@ var window_helper = Base.extend({
 				var task = args.task;
 				var gparams = args.gparams;
 				console.log('ready to check next elem:', loc);
-				self.wait_mbox_homepage_call_manual_fun = [gparams, task];
+				if(loc.indexOf('mbox/homepage')>=0){
+					var func = find_func(loc, manual_url_mapping);
+					func.apply(self, [gparams, task]);
+				} else {
+					self.wait_mbox_homepage_call_manual_fun = [gparams, task];
+				}
 				// func.apply(self, [gparams, task]);
 			}else if('transfer_ok_continue' == args.tag){
+				if(args.hasOwnProperty('skip')){
+					var skip = args.skip;
+					if(skip){
+						console.log('transfer_ok_continue:', args);
+					}
+				}
 				self.fetch_helper.on_transfer_continue(args);
 			} else if('transfer_ok_continue_failed' == args.tag){
 				//TODO 
@@ -384,6 +397,9 @@ var window_helper = Base.extend({
 						}
 					},{'closable':true, 'modal':false})
 				}
+			} else if('test_recursive' == args.tag){
+				var task_id=args.task_id, folder_id=args.folder_id;
+				self.fetch_helper.test_recursive(task_id, folder_id);
 			}
 		});
 		if(this.first_show){

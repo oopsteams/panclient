@@ -48,7 +48,7 @@ if(ele_remote){
 			if(args.hasOwnProperty('err')){
 				err = args.err;
 			}
-			// console.log('progress args:', args);
+			console.log('progress args:', args);
 			if(task.hasOwnProperty('over_count') && task.hasOwnProperty('total_count')){
 				var over_count = task.over_count;
 				var total_count = task.total_count;
@@ -58,25 +58,29 @@ if(ele_remote){
 					$("#"+item_id+'_tr')[0].progressbar.progressbar("value", r);
 				}
 			}
+			var one_by_one_btn = $('#'+item_id+'_one_by_one_btn');
+			var btn = $('#'+item_id+'_btn');
 			if(isover){
 				$('#'+item_id+'_speed').html('100%');
 				$("#"+item_id+'_tr')[0].progressbar.progressbar("value", 100);
-				var btn = $('#'+item_id+'_btn');
-				btn.hide();
 			}
+			btn.hide();
+			one_by_one_btn.hide();
 			if(err){
-				alert(err);
+				//alert(err);
+				delete args['err'];
 				var btn = $('#'+item_id+'_btn');
 				btn[0].retry = true;
 				btn.show();
 				one_by_one_btn.show();
 			} else {
+				
 				update_task_desc(task);
 			}
 			
 		} else if('statistic' == args.tag){
 			var task = args.task,gparams = args.gparams;
-			// console.log('statistic args:', args);
+			console.log('statistic args:', args);
 			var item_id = task.id;
 			var pin = task.pin;
 			var tr = $("#"+item_id+'_tr');
@@ -85,6 +89,7 @@ if(ele_remote){
 				init_widget({"tasks":[task], 'gparams':gparams});
 			}
 			tr = $("#"+item_id+'_tr');
+			
 			if(pin==1){
 				var act_btn = $('#'+item_id+'_act_btn');
 				act_btn[0].context = task;
@@ -183,7 +188,7 @@ if(ele_remote){
 				var pin = context.pin;
 				console.log('act_btn pin:', pin);
 				ipcRenderer.send('asynchronous-popwin-backend', {"tag":"delete_task", "task":context});
-			// });
+			});
 			one_by_one_btn.on("click", function(event){
 				var context=event.currentTarget.context;
 				var pin = context.pin;

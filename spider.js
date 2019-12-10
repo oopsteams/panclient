@@ -5,6 +5,10 @@ const max_retry_cnt = 5;
 var inject_btn_group = false;
 var to_find_share_btn = false;
 if(ele_remote){
+	window.test_recursive = (task_id,fid)=>{
+		ipcRenderer.send('asynchronous-spider-backend', {"tag":"test_recursive", "task_id":task_id, 'folder_id':fid});
+	};
+	// test_recursive(1575901700377, '738885055643055')
 	var helpers = {
 		isArray: function(value) {
 			if (Array.isArray && Array.isArray(value)) {
@@ -119,7 +123,7 @@ if(ele_remote){
 			if(args.params){
 				helpers.extend(global_base_params, args.params);
 			}
-			setTimeout(()=>{ipcRenderer.send('asynchronous-spider-backend', {"tag":"check_loc", "loc":document.location.href});},300);
+			setTimeout(()=>{ipcRenderer.send('asynchronous-spider-backend', {"tag":"check_loc", "loc":document.location.href});},500);
 			// init_widget(base_dir);
 			// window.__stat_spider();
 		}else if('click' == args.tag){
@@ -142,7 +146,7 @@ if(ele_remote){
 							setTimeout(()=>{
 								// next_check(args, true)
 								elems[0].click();
-							}, 100);
+							}, 1000);
 							
 						}
 					}, 0, true);
@@ -329,8 +333,10 @@ if(ele_remote){
 								check_self_list(_check_dir, false, (rs)=>{
 									if(rs.errno == 0){
 										console.log('目标文件已存在,继续执行:', file);
-										ipcRenderer.send('asynchronous-spider-backend', {"tag":"transfer_ok_continue", "task":task, "file": file, "parent_item": parent_item});
+										global_base_params.remain = global_base_params.remain - file.size;
+										ipcRenderer.send('asynchronous-spider-backend', {"tag":"transfer_ok_continue", "task":task, "file": file, "parent_item": parent_item, "skip":true});
 									} else {
+										console.log('check_self_list rs:', rs);
 										to_transfer_file(task, file, target_dir, tmp_retry_cnt + 1);
 									}
 								});
@@ -549,6 +555,8 @@ if(ele_remote){
 						self_create_folder(dir, (err, rs)=>{
 							callback(rs);
 						});
+					}else{
+						callback(rs);
 					}
 				} else {
 					callback(rs);

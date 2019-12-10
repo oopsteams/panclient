@@ -96,6 +96,129 @@ var fetch_file_list_helper = Base.extend({
 			}
 		}, 1);
 	},
+	recursive_update_folder_file:function(task, file){
+		var self = this;
+		var app_id = task.app_id;
+		var task_id = task.id;
+	},
+	test_recursive:function(task_id, folder_id){
+		var self = this;
+		transfer_tasks_db.query_mult_params({'id': task_id}, (tasks)=>{
+			if(tasks&&tasks.length>0){
+				var _t = tasks[0];
+				file_list_db.query_mult_params({'task_id': task_id, 'app_id': _t.app_id, 'id':folder_id, 'isdir':1}, (_folders)=>{
+					console.log(_folders);
+					if(_folders&&_folders.length>0){
+						var ff = _folders[0];
+						self.recursive_count_folder_file(_t, ff, (my_bulk, main_folder)=>{
+										
+							console.log('my_bulk:',my_bulk);
+							console.log('main_folder:',main_folder);
+							
+						});
+					}
+				});
+			}
+		});
+	},
+	recursive_count_folder_file:function(task, folder_file, out_cb){
+		var self = this;
+		var app_id = task.app_id;
+		var task_id = task.id;
+		folder_file.size = 0;
+		folder_file.total = 0;
+		get_count(folder_file,[folder_file], 0, (may_bulk, main_folder_file)=>{
+			if(out_cb){
+				out_cb(may_bulk, main_folder_file);
+			}
+		});
+		var get_count=(main_folder_file, sub_folders, pos, callback)=>{
+			if(pos>=sub_folders.length){
+				callback(true, main_folder_file);
+				return;
+			}
+			if(main_folder_file.size > transfer_bulk_size){
+				//callback can not bulk
+				callback(false, main_folder_file);
+			} else {
+				var __folder_file = sub_folders[pos];
+				file_list_db.query_count({'app_id': app_id, 'task_id':task_id, 'parent':__folder_file.id},(cnt_row)=>{
+					
+					var total_cnt = cnt_row.cnt;
+					if(total_cnt>transfer_bulk_size){
+						//callback can not bulk
+						callback(false, main_folder_file);
+						return;
+					} else {
+						file_list_db.query_count({'app_id': app_id, 'task_id':task_id, 'parent':__folder_file.id, 'isdir':0, 'pin':0},(fcnt_row)=>{
+							
+							var file_cnt = fcnt_row.cnt;
+							
+							if(total_cnt > file_cnt){
+								file_list_db.query_count({'app_id': app_id, 'task_id':task_id, 'parent':__folder_file.id, 'pin':0},(all_fcnt_row)=>{
+									var file_folder_cnt = all_fcnt_row.cnt;
+									if(file_folder_cnt == file_cnt){//have folder pin not equal 0
+										//callback can not bulk
+										callback(false, main_folder_file);
+									} else if(file_folder_cnt == total_cnt){
+										//recursive count
+										main_folder_file.total += 
+										query_sub_folders(__folder_file.id, task_id, app_id, (_sub_folders)=>{
+											update_size_count(__folder_file.id, task_id, app_id,(sub_size)=>{
+												main_folder_file.total += file_cnt;
+												main_folder_file.size += sub_size;
+												get_count(main_folder_file, _sub_folders, 0, (come_on, _main_folder_file)=>{
+													if(come_on){
+														get_count=(main_folder_file, sub_folders, pos+1, callback);
+													} else {
+														callback(false, main_folder_file);
+													}
+												});
+											});
+										});
+										
+									} else {//part file&folder pin not equal 0
+										//callback can not bulk
+										callback(false, main_folder_file);
+									}
+								});
+							} else {
+								// total_cnt size
+								update_size_count(__folder_file.id, task_id, app_id,(sub_size)=>{
+									main_folder_file.total += file_cnt;
+									main_folder_file.size += sub_size;
+									// get_count=(main_folder_file, sub_folders, pos+1, callback);
+									
+									get_count=(main_folder_file, sub_folders, pos+1, callback);
+								});
+							}
+						});
+					}
+					
+					
+				});
+			}
+			
+		};
+		var update_size_count=(parent_id, task_id, app_id, cb)=>{
+			file_list_db.query_sum('size', {'parent':parent_id, 'task_id':task_id, 'app_id': app_id, 'isdir':0}, (sum_row)=>{
+				if(cb){
+					cb(sum_row.val)
+				}
+			});
+		};
+		var query_sub_folders=(parent_id, task_id, app_id, cb)=>{
+			file_list_db.query_mult_params({'task_id': task_id, 'app_id': app_id, 'parent':parent_id, 'isdir':1, 'pin': 0}, (_sub_folders)=>{
+				if(cb){
+					if(_sub_folders && _sub_folders.length>0){
+						cb(_sub_folders);
+					} else {
+						cb([]);
+					}
+				}
+			});
+		};
+	},
 	fetch_sub_file_list:function(task, parent_item){
 		var self = this;
 		var app_id = task.app_id;
@@ -105,9 +228,15 @@ var fetch_file_list_helper = Base.extend({
 		if(task.hasOwnProperty('one_by_one')){
 			need_one_by_one = task.one_by_one;
 		}
-		file_list_db.update_by_id(parent_item.id, {'pin': 4, 'tm':helpers.now()}, function(){
+		if(parent_item.pin != 4){
+			file_list_db.update_by_id(parent_item.id, {'pin': 4, 'tm':helpers.now()}, function(){
+				parent_item.pin = 4;
+				check_bulk_conditions();
+			});
+		} else {
 			check_bulk_conditions();
-		});
+		}
+		
 		
 		function check_bulk_conditions(){
 			file_list_db.query_count({'app_id': app_id, 'task_id':task_id, 'parent':parent_item.id},(cnt_row)=>{
@@ -129,6 +258,7 @@ var fetch_file_list_helper = Base.extend({
 									});
 								});
 							} else {
+								console.log('need_one_by_one:',need_one_by_one,',file_cnt:',file_cnt,',folder total_cnt:',total_cnt);
 								one_by_one();
 							}
 						} else {
@@ -165,6 +295,8 @@ var fetch_file_list_helper = Base.extend({
 					var file_count = fcnt_row.cnt;
 					parent_item['file_count'] = file_count;
 					check_folder_over_file_cnt(file_count);
+				} else {
+					self.transfer(task);
 				}
 			});
 		}
@@ -179,6 +311,8 @@ var fetch_file_list_helper = Base.extend({
 					} else {
 						self.transfer(task);
 					}
+				} else {
+					self.transfer(task);
 				}
 			});
 		}
@@ -226,16 +360,14 @@ var fetch_file_list_helper = Base.extend({
 			} else {
 				file_list_db.update_by_id(file.id, {'pin': 5}, function(){
 					// console.log('file tranfer ok!:', file.path);
-					if(file.hasOwnProperty('total')){
-						var cnt = 1;
-						if(task.hasOwnProperty('over_count')){
-							task['over_count'] = task['over_count'] + cnt;
-							self.context.popwin_send({'tag':'progress',
-								'id': task.id,
-								'over': task['over_count'] == task['total_count'],
-								'task': task
-							});
-						}
+					var cnt = 1;
+					if(task.hasOwnProperty('over_count')){
+						task['over_count'] = task['over_count'] + cnt;
+						self.context.popwin_send({'tag':'progress',
+							'id': task.id,
+							'over': task['over_count'] == task['total_count'],
+							'task': task
+						});
 					}
 					self.fetch_sub_file_list(task, parent_item);
 				});
