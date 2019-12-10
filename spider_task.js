@@ -212,7 +212,7 @@ if(ele_remote){
 				var h_desc = '转存任务已删除!';
 				if(_t.pin == 9){
 				} else if(_t.pin == 0){
-					h_desc = '断点信息不完整无法继续扫描文件,重新选择分享分析!';
+					h_desc = '正在扫描统计文件,耐心等待!';
 					if(_t.hasOwnProperty('resume_breakpoint') && _t.resume_breakpoint){
 						if(!_t.hasOwnProperty('hide_resume') || !_t.hide_resume){
 							resume_breakpoint_btn.show();

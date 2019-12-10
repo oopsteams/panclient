@@ -413,7 +413,7 @@ var window_helper = Base.extend({
 						}else if('ready' == state){
 							func.apply(self, [gparams, _t]);
 						}
-					},{'closable':true, 'modal':false})
+					},{'closable':false, 'modal':false, 'width':360, 'height':200})
 				}
 			} else if('test_recursive' == args.tag){
 				var task_id=args.task_id, folder_id=args.folder_id;

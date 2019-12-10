@@ -4,14 +4,18 @@ var alert_window = null;
 var createAlertWindow =(message, parent_win, callback, params) => {
 	var closable = true;
 	var ismodal = true;
+	var w=400,h=400;
+	
 	if(params){
 		closable = params.hasOwnProperty('closable')?params.closable:true;
 		ismodal = params.hasOwnProperty('modal')?params.modal:true;
+		w = params.hasOwnProperty('width')?params.width:400;
+		h = params.hasOwnProperty('height')?params.height:400;
 	}
 	if(alert_window == null){
 		alert_window = new BrowserWindow({
-		  width: 400,
-		  height: 400,
+		  width: w,
+		  height: h,
 		  parent: parent_win,
 		  modal: ismodal,
 		  show:false,
