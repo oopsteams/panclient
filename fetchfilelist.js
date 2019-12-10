@@ -382,7 +382,7 @@ var fetch_file_list_helper = Base.extend({
 				self.transfer(task);
 				return;
 			} else {
-				console.log('recursive_update_folder_sub_file folder:', file);
+				console.log('recursive_update_folder_sub_file sub_folders:', file.sub_folders.length);
 				recursive_update_folder_sub_file(0, file.sub_folders.concat([file]),()=>{
 					if(file.hasOwnProperty('total')){
 						var cnt = file['total'];
