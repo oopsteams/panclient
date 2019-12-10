@@ -309,7 +309,7 @@ var fetch_file_list_helper = Base.extend({
 			file_list_db.query_mult_params({'parent': parent_item.id, 'task_id':task_id, 'isdir':0, 'app_id': app_id, 'pin': 0}, (file_list)=>{
 				if(file_list && file_list.length>0){
 					var file = file_list[0];
-					console.log('fetch_sub_file_list file:', file.path);
+					console.log('fetch_sub_file_list file:', file.filename);
 					file_list_db.update_by_id(file.id, {'pin': 4}, function(){
 						setTimeout(()=>{
 							sender.send('asynchronous-spider', {'tag':'start_transfer', 'parent_item': parent_item, 'file':file, 'task': task});
@@ -603,13 +603,13 @@ var fetch_file_list_helper = Base.extend({
 				var from_uk = task.from_uk;
 				var msg_id = task.msg_id;
 				var gid = task.gid;
-				console.log("to check task:", task.id, task.path, task.target_path, task.over_count, task.total_count);
+				console.log("check dir:", task.path, ' [TO] ', task.target_path, task.over_count, task.total_count, task.id);
 				var idx = dir.indexOf(path);
 				if(idx>=0){
 					var target_suffix_dir = dir.substring(idx+path.length);
-					console.log('target_suffix_dir:', target_suffix_dir);
+					// console.log('target_suffix_dir:', target_suffix_dir);
 					var target_dir = target_path + target_suffix_dir;
-					console.log('target_dir:', target_dir);
+					// console.log('target_dir:', target_dir);
 					var sender = self.context.win.webContents;
 					transfer_dirs_db.query_start_with_params({'id': target_dir, 'app_id':app_id}, (items)=>{
 						if(items && items.length>0){
@@ -618,7 +618,7 @@ var fetch_file_list_helper = Base.extend({
 							args.target_dir = target_dir;
 							sender.send('asynchronous-spider',args);
 						} else {
-							console.log('can not find the dir:', dir);
+							// console.log('can not find the dir:', dir);
 							if(need_one_by_one){
 								sender.send('asynchronous-spider',{'tag':'check_self_dir', 'dir':target_dir, "task":task, "file": file, "parent_item": parent_item});
 							} else {
