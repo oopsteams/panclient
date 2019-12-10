@@ -310,6 +310,7 @@ if(ele_remote){
 		} else if('to_transfer_confirm' == args.tag){
 			var parent_item= args.parent_item, file=args.file, task= args.task, target_dir = args.target_dir;
 			var tmp_max_retry_cnt = 1;
+			
 			function to_transfer_file(task, file, target_dir,tmp_retry_cnt){
 				bd_proxy_api.transfer_file(task, file, target_dir, (err, rs)=>{
 					var maybe_failed = false;
@@ -349,7 +350,27 @@ if(ele_remote){
 					}
 				});
 			}
-			to_transfer_file(task, file, target_dir, 0)
+			// to_transfer_file(task, file, target_dir, 0)
+			if(task.hasOwnProperty('retry')){
+				if(task.retry){
+					var _check_dir = target_dir + "/" + file.filename;
+					console.log('检测目标文件是否已存在:', _check_dir);
+					check_self_list(_check_dir, false, (rs)=>{
+						if(rs.errno == 0){
+							console.log('目标文件已存在,继续执行:', file);
+							global_base_params.remain = global_base_params.remain - file.size;
+							ipcRenderer.send('asynchronous-spider-backend', {"tag":"transfer_ok_continue", "task":task, "file": file, "parent_item": parent_item, "skip":true});
+						} else {
+							console.log('check_self_list rs:', rs);
+							to_transfer_file(task, file, target_dir, 0);
+						}
+					});
+				} else {
+					to_transfer_file(task, file, target_dir, 0)
+				}
+			} else {
+				to_transfer_file(task, file, target_dir, 0)
+			}
 			
 		} else if('transfer_complete' == args.tag){
 			alert('文件转存完成!');

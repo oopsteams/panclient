@@ -448,6 +448,7 @@ var fetch_file_list_helper = Base.extend({
 		var app_id = task.app_id;
 		
 		if(retry){
+			task.retry=true;
 			file_list_db.update_by_conditions({'pin':4, 'task_id':task_id, 'isdir':1}, {'pin': 3}, function(){
 				file_list_db.update_by_conditions({'pin':4, 'task_id':task_id, 'isdir':0}, {'pin': 0}, function(){
 					file_list_db.update_by_conditions({'pin':2, 'task_id':task_id, 'isdir':0}, {'pin': 0}, function(){
