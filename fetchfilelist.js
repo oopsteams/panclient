@@ -258,6 +258,7 @@ var fetch_file_list_helper = Base.extend({
 		function new_check_bulk_conditions(){
 			self.recursive_count_folder_file(task, parent_item, (may_bulk, main_folder)=>{
 				if(may_bulk){
+					console.log('bulk transfer:', main_folder.filename, ',total:', main_folder.total, ',size:', main_folder.size);
 					recursive_update_folder_sub_file(0, main_folder.sub_folders.concat([main_folder]),()=>{
 						setTimeout(()=>{
 							sender.send('asynchronous-spider', {'tag':'start_transfer', 'parent_item': parent_item, 'file':parent_item, 'task': task});
