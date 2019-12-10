@@ -85,7 +85,6 @@ if(ele_remote){
 			var pin = task.pin;
 			var tr = $("#"+item_id+'_tr');
 			if(tr.length == 0){
-				build_sub_widget(task);
 				init_widget({"tasks":[task], 'gparams':gparams});
 			}
 			tr = $("#"+item_id+'_tr');
@@ -239,6 +238,9 @@ if(ele_remote){
 		var item_id = task.id;
 		var tr = $("#"+item_id+'_tr');
 		var act_btn = $('#'+item_id+'_act_btn');
+		if(act_btn.length==0){
+			return;
+		}
 		act_btn[0].context = task;
 		var btn = $('#'+item_id+'_btn');
 		btn[0].context = task;
