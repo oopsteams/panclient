@@ -130,7 +130,7 @@ var fetch_file_list_helper = Base.extend({
 				callback(true, main_folder_file);
 				return;
 			}
-			console.log('main_folder_file.total > transfer_bulk_size',main_folder_file.total,transfer_bulk_size);
+			// console.log('main_folder_file.total > transfer_bulk_size',main_folder_file.total,transfer_bulk_size);
 			if(main_folder_file.total > transfer_bulk_size){
 				//callback can not bulk
 				console.log('main_folder_file.total > transfer_bulk_size');
@@ -184,12 +184,10 @@ var fetch_file_list_helper = Base.extend({
 								});
 							} else {
 								// total_cnt size
-								console.log('total_cnt == file_cnt, will update_size_count:',file_cnt, total_cnt);
+								// console.log('total_cnt == file_cnt, will update_size_count:',file_cnt, total_cnt);
 								update_size_count(__folder_file.id, task_id, app_id,(sub_size)=>{
 									main_folder_file.total += file_cnt;
 									main_folder_file.size += sub_size;
-									// get_count=(main_folder_file, sub_folders, pos+1, callback);
-									
 									get_count(main_folder_file, sub_folders, pos+1, callback);
 								});
 							}
