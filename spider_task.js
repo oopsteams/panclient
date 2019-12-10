@@ -85,7 +85,7 @@ if(ele_remote){
 			var pin = task.pin;
 			var tr = $("#"+item_id+'_tr');
 			if(tr.length == 0){
-				init_widget({"tasks":[task], 'gparams':gparams});
+				init_widget({"tasks":[task], 'gparams':gparams}, true);
 			}
 			tr = $("#"+item_id+'_tr');
 			
@@ -128,7 +128,7 @@ if(ele_remote){
 	  return Math.round((part_val/total) * 10000)/100;
 	}
 	
-	function init_widget(params){
+	function init_widget(params, appendbefore){
 		var tasks = params.tasks;
 		var gparams = params.gparams;
 		var _html = '';
@@ -143,8 +143,11 @@ if(ele_remote){
 			var _title_tips = "从:"+_t.path + "至:" + _t.target_path+':' + _t.name;
 			var tr=tasks_container.find('#'+item_id+'_tr');
 			var task_dom = item_format.replace(_id_reg, item_id).replace(_title_reg, _title_tips).replace(_title_show_reg, _title_desc);
-			
-			tasks_container.append($(task_dom));
+			if(appendbefore){
+				tasks_container.prepend($(task_dom));
+			} else {
+				tasks_container.append($(task_dom));
+			}
 			
 			tr=tasks_container.find('#'+item_id+'_tr');
 			var act_btn = $('#'+item_id+'_act_btn');

@@ -832,7 +832,7 @@ var fetch_file_list_helper = Base.extend({
 					self.context.check_open_popwin((popwin)=>{
 						if(!popwin){
 							self.check_ready((tasks)=>{
-								self.context._dialog(tasks,()=>{},true, true);
+								self.context._dialog(tasks,()=>{},false, false);
 							});
 						}
 					});

@@ -356,7 +356,7 @@ var window_helper = Base.extend({
 								self.wait_mbox_homepage_call_manual_fun = [gparams, _t];
 								func.apply(self, [gparams, _t]);
 							}
-						},{'closable':true, 'modal':false})
+						},{'modal':true, 'width':360, 'height':200})
 						
 						return;
 						
@@ -390,6 +390,7 @@ var window_helper = Base.extend({
 				self.fetch_helper.on_transfer_continue(args, true);
 			} else if('init_page_ok' == args.tag){
 				if(self.alertwin){
+					self.alertwin.setClosable(true);
 					self.alertwin.close();
 					self.alertwin = null;
 				}
@@ -413,7 +414,7 @@ var window_helper = Base.extend({
 						}else if('ready' == state){
 							func.apply(self, [gparams, _t]);
 						}
-					},{'closable':false, 'modal':false, 'width':360, 'height':200})
+					},{'closable':true, 'modal':false, 'width':360, 'height':200})
 				}
 			} else if('test_recursive' == args.tag){
 				var task_id=args.task_id, folder_id=args.folder_id;
