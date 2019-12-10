@@ -142,7 +142,7 @@ if(ele_remote){
 			var _t = tasks[i];
 			var item_id = _t.id;
 			var _title_desc = "至:" + _t.target_path+ ",从:"+_t.path;
-			var _title_tips = "从:"+_t.path + "至:" + _t.target_path+':' + _t.name;
+			var _title_tips = _t.name+",从:"+_t.path + "至:" + _t.target_path;
 			var tr=tasks_container.find('#'+item_id+'_tr');
 			var task_dom = item_format.replace(_id_reg, item_id).replace(_title_reg, _title_tips).replace(_title_show_reg, _title_desc);
 			if(appendbefore){
