@@ -357,7 +357,7 @@ if(ele_remote){
 					console.log('检测目标文件是否已存在:', _check_dir);
 					check_self_list(_check_dir, false, (rs)=>{
 						if(rs.errno == 0){
-							console.log('目标文件已存在,继续执行:', file);
+							console.log('目标文件已存在,继续执行:', file.path);
 							global_base_params.remain = global_base_params.remain - file.size;
 							ipcRenderer.send('asynchronous-spider-backend', {"tag":"transfer_ok_continue", "task":task, "file": file, "parent_item": parent_item, "skip":true});
 						} else {
