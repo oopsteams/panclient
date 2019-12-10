@@ -606,7 +606,7 @@ var fetch_file_list_helper = Base.extend({
 				var from_uk = task.from_uk;
 				var msg_id = task.msg_id;
 				var gid = task.gid;
-				console.log("check dir:", task.path, ' [TO] ', task.target_path, task.over_count, task.total_count, task.id);
+				// console.log("check dir:", task.path, ' [TO] ', task.target_path, task.over_count, task.total_count, task.id);
 				var idx = dir.indexOf(path);
 				if(idx>=0){
 					var target_suffix_dir = dir.substring(idx+path.length);
