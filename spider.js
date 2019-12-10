@@ -365,25 +365,6 @@ if(ele_remote){
 		ipcRenderer.send('asynchronous-spider-backend', {"tag":"to_start_transfer", "app_id":global_base_params.app_id});
 	};
 	
-	// function next_check(args){
-	// // 	var title_val = args.folder_title;
-	// // 			var __options={'root':{'tag':'div.all-content', 'attrs':{'node-type':'all-content'}},'parent':{'tag':'div.title[data-msgid]', 'attrs':{'title':title_val}},
-	// // 'attrs':{'node-type':'file-name'},
-	// // 'tag':'a.file-name'};
-	// 	var __options={'root':{'tag':'div.module-content-all'},'parent':{'tag':'div.file-factory', 'attrs':{'node-type':'file-factory'}},'tag':'span.button'};
-	// 	to_find_group_btn(__options, (elems)=>{
-	// 		console.log('folder elems:', elems);
-	// 		if(elems && elems.length>0){
-	// 			elems[0].click();
-	// 			// setTimeout(next_check_folder, 2000);
-	// 			// setTimeout(next_check_nav, 2000);
-	// 			// setTimeout(next_check_save_btn, 2000);
-	// 			setTimeout(()=>{
-	// 				ipcRenderer.send('asynchronous-spider-backend', {"tag":"init_page_ok", "gparams":global_base_params});
-	// 			},2000);
-	// 		}
-	// 	});
-	// }
 	function next_check_share_folder(args){
 		var options={'root':{'tag':'div.module-content-all'},'parent':{'tag':'div.file-factory', 'attrs':{'node-type':'file-factory'}},'tag':'span.button'};
 		fetch_element_until_fetched(options, (elems)=>{
@@ -396,23 +377,6 @@ if(ele_remote){
 			}
 		}, 0, true);
 	}
-	
-	function next_check_folder(){
-				var __options={'root':{'tag':'div.sharelist-container', 'attrs':{'node-type':'sharelist-container'}},
-				'parent':{'tag':'span.sharelist-item-title-name'},
-				'attrs':{'title':'A【亲子教育】'},
-				'tag':'a',
-				};
-				to_find_group_btn(__options, (elems)=>{
-					console.log('folder elems:', elems);
-					if(elems && elems.length>0){
-						var isdir = elems[0].getAttribute('data-dir');
-						if('1' == isdir){
-							elems[0].click();
-						}
-					}
-				});
-			}
 	
 	function next_check_nav(args, until){
 		var __options={'root':{'tag':'div.main-files', 'attrs':{'node-type':'main-content'}},
@@ -430,7 +394,7 @@ if(ele_remote){
 				var nav = elems[0];
 				var btn=document.createElement("BUTTON");
 				// btn.value='动态导入';
-				btn.innerHTML = '动态导入';
+				btn.innerHTML = '不限量转存';
 				nav.appendChild(btn);
 				btn.onclick=function(e){
 					valid_check_boxs(document.querySelector('div.sharelist-container[node-type="sharelist-container"]'), (fid_list, isdir_map)=>{

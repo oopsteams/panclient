@@ -72,7 +72,7 @@ if(ele_remote){
 				var btn = $('#'+item_id+'_btn');
 				btn[0].retry = true;
 				btn.show();
-				one_by_one_btn.show();
+				// one_by_one_btn.show();
 			} else {
 				
 				update_task_desc(task);
@@ -98,6 +98,7 @@ if(ele_remote){
 					var context=event.currentTarget.context;
 					var pin = context.pin;
 					console.log('act_btn pin:', pin);
+					$(event.currentTarget).hide();
 					ipcRenderer.send('asynchronous-popwin-backend', {"tag":"delete_task", "task":context});
 				});
 				act_btn.show();
@@ -113,6 +114,7 @@ if(ele_remote){
 				    });
 				update_task_desc(task);
 			} else {
+				$('#'+item_id+'_resume_breakpoint_btn').hide();
 				var cnt = 0;
 				if(task.hasOwnProperty('num')){
 					cnt = task.num;
@@ -171,7 +173,7 @@ if(ele_remote){
 			act_btn.button({icon: "ui-icon-close", showLabel: false});
 			if([2].indexOf(_t.pin)>=0){
 				btn[0].retry = true;
-				one_by_one_btn.show();
+				// one_by_one_btn.show();
 			}
 			btn.on("click", function(event){
 				var context=event.currentTarget.context;
@@ -183,7 +185,7 @@ if(ele_remote){
 				} else {
 					ipcRenderer.send('asynchronous-popwin-backend', {"tag":"start_transfer", "task":context, "quota":gparams.quota});
 				}
-				btn.hide();
+				$(event.currentTarget).hide();
 			});
 			act_btn.on("click", function(event){
 				var context=event.currentTarget.context;
@@ -191,19 +193,19 @@ if(ele_remote){
 				console.log('act_btn pin:', pin);
 				ipcRenderer.send('asynchronous-popwin-backend', {"tag":"delete_task", "task":context});
 			});
-			one_by_one_btn.on("click", function(event){
-				var context=event.currentTarget.context;
-				var pin = context.pin;
-				context.one_by_one=true;
-				ipcRenderer.send('asynchronous-popwin-backend', {"tag":"retry_transfer", "task":context, "quota":gparams.quota});
-				one_by_one_btn.hide();
-				btn.hide();
-			});
+			// one_by_one_btn.on("click", function(event){
+			// 	var context=event.currentTarget.context;
+			// 	var pin = context.pin;
+			// 	context.one_by_one=true;
+			// 	ipcRenderer.send('asynchronous-popwin-backend', {"tag":"retry_transfer", "task":context, "quota":gparams.quota});
+			// 	$(event.currentTarget).hide();
+			// 	$('#'+context.id+'_btn').hide();
+			// });
 			resume_breakpoint_btn.on("click", function(event){
 				var context=event.currentTarget.context;
 				var pin = context.pin;
 				console.log('to hide resume_breakpoint_btn');
-				resume_breakpoint_btn.hide();
+				$(event.currentTarget).hide();
 				context.hide_resume=true;
 				ipcRenderer.send('asynchronous-popwin-backend', {"tag":"retry_scan", "task":context});
 				

@@ -270,7 +270,7 @@ var window_helper = Base.extend({
 		  self.win = null;
 		});
 		this.win.on('show', (event) => {
-		  console.log('win handler show! event:', event);
+		  // console.log('win handler show! event:', event);
 		  // self.win.webContents.executeJavaScript('__spider()').then((result)=>{
 		  // 	console.log('did-finish-load result:', result);
 		  // });
