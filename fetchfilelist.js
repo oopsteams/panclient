@@ -133,7 +133,7 @@ var fetch_file_list_helper = Base.extend({
 			// console.log('main_folder_file.total > transfer_bulk_size',main_folder_file.total,transfer_bulk_size);
 			if(main_folder_file.total > transfer_bulk_size){
 				//callback can not bulk
-				console.log('main_folder_file.total > transfer_bulk_size');
+				console.log('main_folder_file.total > transfer_bulk_size:', main_folder_file.total, transfer_bulk_size);
 				callback(false, main_folder_file);
 			} else {
 				var __folder_file = sub_folders[pos];
@@ -155,7 +155,7 @@ var fetch_file_list_helper = Base.extend({
 									var file_folder_cnt = all_fcnt_row.cnt;
 									if(file_folder_cnt == 0){//have folder pin not equal 0
 										//callback can not bulk
-										console.log('file_folder_cnt == total_cnt,have folder pin not equal 0');
+										console.log('file_folder_cnt is 0,have folder pin not equal 0');
 										callback(false, main_folder_file);
 									} else if(file_folder_cnt+file_cnt == total_cnt){
 										//recursive count
@@ -178,7 +178,7 @@ var fetch_file_list_helper = Base.extend({
 										
 									} else {//part file&folder pin not equal 0
 										//callback can not bulk
-										console.log('file_folder_cnt != total_cnt');
+										console.log('file_folder_cnt != total_cnt:', file_folder_cnt, total_cnt);
 										callback(false, main_folder_file);
 									}
 								});
@@ -473,7 +473,7 @@ var fetch_file_list_helper = Base.extend({
 					//TODO 查询最后的fileitem
 					self.fetch_sub_file_list_by_task(task);
 				}
-			}, 1);
+			}, 1, 0, 'order by tm');
 		};
 	},
 	del:function(task){

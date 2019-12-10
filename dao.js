@@ -327,9 +327,12 @@ var Dao = Base.extend(
 				}
 			});
 		},
-		query_mult_params:function(params, cb, size, offset){
+		query_mult_params:function(params, cb, size, offset, orderby){
 			var ithis = this;
 			var where_str = '';
+			if(!orderby){
+				orderby = '';
+			}
 			if(!offset){
 				offset = 0;
 			}
@@ -351,7 +354,7 @@ var Dao = Base.extend(
 				cb([]);
 				return;
 			}
-			var query_rows = "select * from " + this.name + " where " + where_str + " LIMIT "+ size +" OFFSET "+ offset;
+			var query_rows = "select * from " + this.name + " where " + where_str +" "+ orderby + " LIMIT "+ size +" OFFSET "+ offset;
 			// console.log("query query_rows:",query_rows);
 			ithis.db.all(query_rows, (err, rows)=>{
 				if(err != null){
