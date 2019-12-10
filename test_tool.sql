@@ -10,3 +10,6 @@ select a.id, a.filename, b.id, b.filename, a.size, a.path from file_list a, file
 select a.id, a.filename, b.id, b.filename, a.size, a.path from file_list a, file_list b where a.task_id=1575867993323 and a.isdir=1 and a.id<>b.id and a.size=b.size and a.parent=b.parent and (a.filename like b.filename||'%' or b.filename like a.filename||'%');
 
 select id,name from transfer_tasks;
+
+delete from file_list where task_id= and parent=
+delete from file_list where task_id= and id=
