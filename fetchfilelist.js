@@ -261,7 +261,7 @@ var fetch_file_list_helper = Base.extend({
 				self.recursive_count_folder_file(task, parent_item, (may_bulk, main_folder)=>{
 					if(may_bulk){
 						self.context.log('bulk transfer:', main_folder.filename, ',total:', main_folder.total, ',size:', main_folder.size);
-						recursive_update_folder_sub_file(0, main_folder.sub_folders.concat([main_folder]),()=>{
+						recursive_update_folder_sub_file(0, [main_folder].concat(main_folder.sub_folders),()=>{
 							setTimeout(()=>{
 								sender.send('asynchronous-spider', {'tag':'start_transfer', 'parent_item': parent_item, 'file':parent_item, 'task': task});
 							}, 100);
@@ -384,7 +384,7 @@ var fetch_file_list_helper = Base.extend({
 				return;
 			} else {
 				self.context.log('recursive_update_folder_sub_file sub_folders:', file.sub_folders.length);
-				recursive_update_folder_sub_file(0, file.sub_folders.concat([file]),()=>{
+				recursive_update_folder_sub_file(0, [file].concat(file.sub_folders),()=>{
 					if(file.hasOwnProperty('total')){
 						var cnt = file['total'];
 						if(task.hasOwnProperty('over_count')){
