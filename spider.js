@@ -302,7 +302,7 @@ if(ele_remote){
 			// console.log('global_base_params:', global_base_params);
 			// console.log('window global_base_params:', window.global_base_params);
 			if(!global_base_params.hasOwnProperty('remain')){
-				global_base_params.remain = global_base_params.quota.free;
+				global_base_params.remain = global_base_params.quota.free - global_base_params.quota.used;
 			}
 			var remain = global_base_params.remain;
 			send_log('remain:',remain,', file size:', file.size);
