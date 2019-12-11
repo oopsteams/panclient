@@ -1,5 +1,18 @@
 const ele_remote = require('electron').remote;
 if(ele_remote){
+	function scale_size(get_size){
+	  var bit = 'B';
+	  var _size = get_size;
+	  if(_size>1024){
+	    _size = Math.round((_size/1024) * 10)/10;
+	    bit = 'K';
+	  }
+	  if(_size>1024){
+	   _size = Math.round((_size/1024) * 10)/10;
+	   bit = 'M';
+	  }
+	  return _size + bit;
+	}
 	const max_retry_cnt = 5;
 	var inject_btn_group = false;
 	var to_find_share_btn = false;
@@ -305,7 +318,7 @@ if(ele_remote){
 				global_base_params.remain = global_base_params.quota.free - global_base_params.quota.used;
 			}
 			var remain = global_base_params.remain;
-			send_log('remain:',remain,', file size:', file.size);
+			send_log('remain:',scale_size(remain),', file size:', scale_size(file.size));
 			if(remain > file.size){
 				ipcRenderer.send('asynchronous-spider-backend', {"tag":"to_check_file_dir", "task":task, "file": file, "parent_item": parent_item});
 			} else {
