@@ -90,7 +90,7 @@ if(ele_remote){
 			});
 		}
 	};
-	console.log('require document :', document);
+	// console.log('require document :', document);
 	
 	var _id_reg = new RegExp("_id_", "g");
 	var _title_reg = new RegExp("_title_", "g");
@@ -132,11 +132,11 @@ if(ele_remote){
 			// init_widget(base_dir);
 			// window.__stat_spider();
 		}else if('click' == args.tag){
-			var key = args.target;
-			console.log('will call target click!');
-			if(target_map[key]){
-				// target_map[key].click();
-			}
+			// var key = args.target;
+			// console.log('will call target click!');
+			// if(target_map[key]){
+			// 	// target_map[key].click();
+			// }
 		}else if('find_share_btn' == args.tag){
 			var task = args.task;
 			var gparams = args.gparams;
@@ -180,7 +180,7 @@ if(ele_remote){
 				inject_btn_group = true;
 				setTimeout(()=>{
 					fetch_element_until_fetched(options, (elems)=>{
-						console.log('group elems:', elems);
+						// console.log('group elems:', elems);
 						if(elems && elems.length>0){
 							elems[0].click();
 							setTimeout(()=>{next_check_nav(args, true)}, 2000);
@@ -262,7 +262,7 @@ if(ele_remote){
 						title: "保存到",
 						confirmBack: function(t) {
 							var target_dir = t;
-							console.log('target_dir:', target_dir);
+							send_log('target_dir:', target_dir);
 							var parent_dir = fetch_parent_dir();
 							deep_fetch_file_list_by_fid(fid_list, parent_dir, target_dir, null, null, true);
 						},
@@ -305,7 +305,7 @@ if(ele_remote){
 				global_base_params.remain = global_base_params.quota.free;
 			}
 			var remain = global_base_params.remain;
-			send_log('remain:%s, file size:%s', remain, file.size);
+			send_log('remain:',remain,', file size:', file.size);
 			if(remain > file.size){
 				ipcRenderer.send('asynchronous-spider-backend', {"tag":"to_check_file_dir", "task":task, "file": file, "parent_item": parent_item});
 			} else {
@@ -334,14 +334,14 @@ if(ele_remote){
 							//TODO check file or folder exists.
 							setTimeout(()=>{
 								var _check_dir = target_dir + "/" + file.filename;
-								console.log('检测目标文件是否已存在:', _check_dir);
+								send_log('检测目标文件是否已存在:', _check_dir);
 								check_self_list(_check_dir, false, (rs)=>{
 									if(rs.errno == 0){
 										send_log('目标文件已存在,继续执行:', file);
 										global_base_params.remain = global_base_params.remain - file.size;
 										ipcRenderer.send('asynchronous-spider-backend', {"tag":"transfer_ok_continue", "task":task, "file": file, "parent_item": parent_item, "skip":true});
 									} else {
-										send_log('check_self_list rs:', rs);
+										send_log('目标文件不存在rs:', rs);
 										to_transfer_file(task, file, target_dir, tmp_retry_cnt + 1);
 									}
 								});
@@ -357,14 +357,14 @@ if(ele_remote){
 			if(task.hasOwnProperty('retry')){
 				if(task.retry){
 					var _check_dir = target_dir + "/" + file.filename;
-					console.log('检测目标文件是否已存在:', _check_dir);
+					// console.log('检测目标文件是否已存在:', _check_dir);
 					check_self_list(_check_dir, false, (rs)=>{
 						if(rs.errno == 0){
-							console.log('目标文件已存在,继续执行:', file.path);
+							send_log('retry task 目标文件已存在,继续执行:', file.path);
 							global_base_params.remain = global_base_params.remain - file.size;
 							ipcRenderer.send('asynchronous-spider-backend', {"tag":"transfer_ok_continue", "task":task, "file": file, "parent_item": parent_item, "skip":true});
 						} else {
-							console.log('check_self_list rs:', rs);
+							send_log('retry task 目标文件不存在rs:', rs);
 							to_transfer_file(task, file, target_dir, 0);
 						}
 					});
@@ -392,7 +392,7 @@ if(ele_remote){
 	function next_check_share_folder(args){
 		var options={'root':{'tag':'div.module-content-all'},'parent':{'tag':'div.file-factory', 'attrs':{'node-type':'file-factory'}},'tag':'span.button'};
 		fetch_element_until_fetched(options, (elems)=>{
-			console.log('next_check_share_folder elems:', elems);
+			send_log('next_check_share_folder elems:', elems);
 			if(elems && elems.length>0){
 				elems[0].click();
 				setTimeout(()=>{
@@ -413,7 +413,7 @@ if(ele_remote){
 			func = fetch_element_until_fetched;
 		}
 		func(__options, (elems)=>{
-			console.log('nav elems:', elems);
+			// console.log('nav elems:', elems);
 			if(elems && elems.length>0){
 				var nav = elems[0];
 				var btn=document.createElement("BUTTON");
@@ -422,7 +422,7 @@ if(ele_remote){
 				nav.appendChild(btn);
 				btn.onclick=function(e){
 					valid_check_boxs(document.querySelector('div.sharelist-container[node-type="sharelist-container"]'), (fid_list, isdir_map)=>{
-						console.log('fid_list:', fid_list);
+						send_log('选择的fid list:', fid_list);
 						if(fid_list){
 							ipcRenderer.send('asynchronous-spider-backend', {"tag":"fetched_bd_context", "fid_list":fid_list});
 						}
@@ -472,7 +472,7 @@ if(ele_remote){
 				// console.log('rs:', rs);
 				if(rs){
 					if(rs.errno !=0 ){
-						console.log('fetch_file_list_by_fid err rs:', rs);
+						send_log('fetch_file_list_by_fid err rs:', rs);
 						var skip = false;
 						if(rs.errno == -9){
 							// ipcRenderer.send('asynchronous-spider-backend', {"tag":"scan_file_list_failed", "params":params, "fid_list":fid_list, "parent_dir":parent_dir, "target_dir":target_dir, "pos":pos, "result":rs, "app_id":global_base_params.app_id, "task_name": task_name});
@@ -527,7 +527,7 @@ if(ele_remote){
 					}
 					
 				}else if(err){
-					console.log('rs:', rs);
+					send_log('deep_fetch_file_list_by_fid err rs:', rs);
 					setTimeout(function() {deep_call(pos);}, 500+100*retry_cnt);
 					retry_cnt += 1;
 				}
@@ -597,10 +597,10 @@ if(ele_remote){
 				clienttype:ctype
 			};
 			var url = _build_get_url(path, params);
-			console.log('fetch_group_list url:', url);
+			send_log('fetch_group_list url:', url);
 			baidu_api.get_req(url, (rs)=>{
 				if(rs.errno!=0){
-					console.log('group list err rs:', rs);
+					send_log('group list err rs:', rs);
 				}
 				if(callback){
 					callback(null, rs);
@@ -638,14 +638,14 @@ if(ele_remote){
 				}
 				baidu_api.post_req(url, form_data, 'formdata', (rs)=>{
 					if(rs.errno!=0){
-						console.log('transfer_file err rs:', rs);
+						send_log('transfer_file err rs:', rs);
 					}
 					if(callback){
 						callback(null, rs);
 					}
 				},(err)=>{
 					if(retry_cnt < max_retry_cnt){
-						console.log('transfer_file to retry call:', err);
+						send_log('transfer_file to retry call:', err);
 						setTimeout(()=>{re_call_fun(retry_cnt+1);}, 1000 + retry_cnt * 100);
 					} else {
 						if(callback){
@@ -682,7 +682,7 @@ if(ele_remote){
 				}
 				baidu_api.post_req(url, form_data, 'formdata', (rs)=>{
 					if(rs.errno!=0){
-						console.log('create folder err rs:', rs);
+						send_log('create folder err rs:', rs);
 					}
 					if(callback){
 						callback(null, rs);
@@ -692,7 +692,7 @@ if(ele_remote){
 						callback("failed", null);
 					}
 					if(retry_cnt < max_retry_cnt){
-						console.log('self_create_folder to retry call:', err);
+						send_log('self_create_folder to retry call:', err);
 						setTimeout(()=>{re_call_fun(retry_cnt+1);}, 1000 + retry_cnt * 100);
 					} else {
 						if(callback){
@@ -725,14 +725,14 @@ if(ele_remote){
 				}
 				baidu_api.get_req(url, (rs)=>{
 					if(rs.errno!=0 && rs.errno!=-9){
-						console.log('file list sys err rs:', rs);
+						send_log('file list sys err rs:', rs);
 					}
 					if(callback){
 						callback(null, rs);
 					}
 				},(err)=>{
 					if(retry_cnt < max_retry_cnt){
-						console.log('self_file_list to retry call:', err);
+						send_log('self_file_list to retry call:', err);
 						setTimeout(()=>{re_call_fun(retry_cnt+1);}, 1000 + retry_cnt * 100);
 					} else {
 						if(callback){
@@ -763,14 +763,14 @@ if(ele_remote){
 				}
 				baidu_api.get_req(url, (rs)=>{
 					if(rs.errno!=0){
-						console.log('quota err rs:', rs);
+						send_log('quota err rs:', rs);
 					}
 					if(callback){
 						callback(null, rs);
 					}
 				},(err)=>{
 					if(retry_cnt < max_retry_cnt){
-						console.log('quota to retry call:', err);
+						send_log('quota to retry call:', err);
 						setTimeout(()=>{re_call_fun(retry_cnt+1);}, 1000 + retry_cnt * 100);
 					} else {
 						if(callback){
@@ -809,14 +809,14 @@ if(ele_remote){
 				}
 				baidu_api.get_req(url, (rs)=>{
 					if(rs.errno!=0){
-						console.log('shareinfo err rs:', rs);
+						send_log('shareinfo err rs:', rs);
 					}
 					if(callback){
 						callback(null, rs);
 					}
 				},(err)=>{
 					if(retry_cnt < max_retry_cnt){
-						console.log('fetch_file_list_by_fid to retry call:', err);
+						send_log('fetch_file_list_by_fid to retry call:', err);
 						setTimeout(()=>{re_call_fun(retry_cnt+1);}, 1000 + retry_cnt * 100);
 					} else {
 						if(callback){
@@ -831,30 +831,30 @@ if(ele_remote){
 	}
 	window.baidu_api = baidu_api;
 	
-	function next_check_save_btn(){
-		var __options={'root':{'tag':'div.sharelist-operate', 'attrs':{'node-type':'sharelist-operate'}},
-		'parent':{'tag':'div.sharelist-operate-btns'},
-		'attrs':{'node-type':'btn-operate', 'data-key':'transfer'},
-		'tag':'a.global-btn-transfer',
-		};
-		to_find_group_btn(__options, (elems)=>{
-			console.log('save btn elems:', elems);
-			if(elems && elems.length>0){
-				var nav = elems[0];
-				window.save_btn = nav;
-				// var btn=document.createElement("BUTTON");
-				// // btn.value='动态导入';
-				// btn.innerHTML = '动态导入';
-				// nav.appendChild(btn);
-				// btn.onclick=function(e){alert('hello!');};
-			}
-		});
-	}
+	// function next_check_save_btn(){
+	// 	var __options={'root':{'tag':'div.sharelist-operate', 'attrs':{'node-type':'sharelist-operate'}},
+	// 	'parent':{'tag':'div.sharelist-operate-btns'},
+	// 	'attrs':{'node-type':'btn-operate', 'data-key':'transfer'},
+	// 	'tag':'a.global-btn-transfer',
+	// 	};
+	// 	to_find_group_btn(__options, (elems)=>{
+	// 		// console.log('save btn elems:', elems);
+	// 		if(elems && elems.length>0){
+	// 			var nav = elems[0];
+	// 			window.save_btn = nav;
+	// 			// var btn=document.createElement("BUTTON");
+	// 			// // btn.value='动态导入';
+	// 			// btn.innerHTML = '动态导入';
+	// 			// nav.appendChild(btn);
+	// 			// btn.onclick=function(e){alert('hello!');};
+	// 		}
+	// 	});
+	// }
 	
-	window.test=function(){
-		alert('hello!');
-	}
-	console.log('hello i am here!');
+	// window.test=function(){
+	// 	alert('hello!');
+	// }
+	// console.log('hello i am here!');
 	function getElementAbsoluteOffsetTop(element){
 	  var absolute_offset_top = element.offsetTop;
 	  var absolute_offset_left = element.offsetLeft;
@@ -925,7 +925,7 @@ if(ele_remote){
 		return true;
 	}
 	function fetch_element_until_fetched(options, cb, counter, until){
-		console.log('fetch_element_until_fetched start until:', until);
+		// console.log('fetch_element_until_fetched start until:', until);
 		var rs = null;
 		var _options = {};
 		if(!counter)counter=0;
@@ -938,7 +938,7 @@ if(ele_remote){
 			if(attrs){
 				for(var k in attrs){selector_val += '['+k+'|="'+attrs[k]+'"]';}
 			}
-			console.log("root selector_val:", selector_val);
+			// send_log("root selector_val:", selector_val);
 			all_roots = document.querySelectorAll(selector_val);
 		}
 		for(var i=0;i<all_roots.length;i++){
@@ -951,7 +951,7 @@ if(ele_remote){
 		if(!rs || rs.length==0){
 			if(counter > 23){
 				var rs = false;
-				console.log('until:', until);
+				send_log('until:', until);
 				if(until){
 					rs = true;
 				} else {
@@ -1052,7 +1052,7 @@ if(ele_remote){
 					}
 				}
 			} else {
-				console.log('can not find element: by root=>', root_element, ' [query] ', selector_val);
+				// send_log('can not find element: by root=>', root_element, ' [query] ', selector_val);
 			}
 			if(child_options){
 				var pos = 0;
