@@ -160,14 +160,13 @@ var fetch_file_list_helper = Base.extend({
 									} else if(file_folder_cnt+file_cnt == total_cnt){
 										//recursive count
 										query_sub_folders(__folder_file.id, task_id, app_id, (_sub_folders)=>{
-											
+											_sub_folders.forEach((sf, index)=>{main_folder_file.sub_folders.push(sf)});
 											update_size_count(__folder_file.id, task_id, app_id,(sub_size)=>{
 												main_folder_file.total += file_cnt;
 												main_folder_file.size += sub_size;
 												// console.log('recursive to fetch sub folder:', _sub_folders);
 												get_count(main_folder_file, _sub_folders, 0, (come_on, _main_folder_file)=>{
 													if(come_on){
-														_sub_folders.forEach((sf, index)=>{main_folder_file.sub_folders.push(sf)});
 														get_count(main_folder_file, sub_folders, pos+1, callback);
 													} else {
 														callback(false, main_folder_file);
@@ -245,7 +244,7 @@ var fetch_file_list_helper = Base.extend({
 				var folder = folders[pos];
 				file_list_db.update_by_id(folder.id, {'pin': 4, 'tm':helpers.now()}, function(){
 					folder.pin = 4;
-					file_list_db.update_by_conditions({'parent':folder.id, 'task_id':task_id, 'isdir':0}, {'pin': 2}, function(){
+					file_list_db.update_by_conditions({'parent':folder.id, 'task_id':task_id, }, {'pin': 2}, function(){
 						recursive_update_folder_sub_file(pos+1, folders, cb);
 					});
 				});
@@ -364,7 +363,7 @@ var fetch_file_list_helper = Base.extend({
 				var folder = folders[pos];
 				file_list_db.update_by_id(folder.id, {'pin': 5, 'tm':helpers.now()}, function(){
 					folder.pin = 5;
-					file_list_db.update_by_conditions({'parent':folder.id, 'task_id':task_id, 'isdir':0}, {'pin': 5}, function(){
+					file_list_db.update_by_conditions({'parent':folder.id, 'task_id':task_id}, {'pin': 5}, function(){
 						recursive_update_folder_sub_file(pos+1, folders, cb);
 					});
 				});
