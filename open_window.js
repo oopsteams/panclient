@@ -34,7 +34,7 @@ function find_func(loc, _mapping){
 }
 function disk_home(params, task){
 	var gparams = params;
-	console.log('find_share_btn......');
+	this.log('find_share_btn......');
 	this.win.webContents.send('asynchronous-spider', {tag:'find_share_btn','task':task, 'gparams':gparams});
 }
 function enter_social_group(params, task){
@@ -141,6 +141,14 @@ var window_helper = Base.extend({
 		this.popwin_params = {};
 		this.wait_mbox_homepage_call_manual_fun = null;
 		this.last_web_uid = {};
+		this.logger = options&&options.logger?options.logger:console.log;
+	},
+	log:function(){
+		var _args = [];
+		for(var idx in arguments){
+			_args[idx] = arguments[idx];
+		}
+		this.logger.log.apply(this.logger,_args);
 	},
 	update_statistic(task){
 		var self = this;
@@ -202,7 +210,7 @@ var window_helper = Base.extend({
 			  self.popwin = null;
 			})
 			self.popwin.webContents.on('did-finish-load', () => {
-				console.log('send start=====>');
+				self.log('send start=====>');
 			    self.popwin.webContents.send('asynchronous-popwin', {tag:'start'});
 			  });
 			// console.log('dialog params:', self.popwin_params);
@@ -210,7 +218,7 @@ var window_helper = Base.extend({
 				if('ready' == args.tag){
 					args.tag = 'ready_ok';
 					args.params = self.popwin_params;
-					console.log('recv  ready  !!!');
+					self.log('recv  ready  !!!');
 					self.popwin.webContents.send('asynchronous-popwin', args);
 				} else if('init_ok' == args.tag){
 					// console.log('recv  init  !!!');
@@ -220,12 +228,12 @@ var window_helper = Base.extend({
 				} else if('start_transfer' == args.tag){
 					var quota = args.quota;
 					var task = args.task;
-					console.log('start_transfer task:', task);
+					self.log('start_transfer task:', task);
 					self.fetch_helper.transfer(task);
 				} else if('retry_transfer' == args.tag){
 					var quota = args.quota;
 					var task = args.task;
-					console.log('retry_transfer task:', task);
+					self.log('retry_transfer task:', task);
 					self.fetch_helper.transfer(task, true);
 					
 				} else if('delete_task' == args.tag){
@@ -277,7 +285,7 @@ var window_helper = Base.extend({
 		});
 		
 		self.win.webContents.on('did-finish-load', () => {
-			console.log('will send spider start!');
+			self.log('will send spider start!');
 		    self.win.webContents.send('asynchronous-spider', {tag:'start', 'params': fetched_global_base_params, 'base_dir':base_dir});
 		  });
 		
@@ -285,13 +293,20 @@ var window_helper = Base.extend({
 			// console.log('ipcMain backend recv event:%s, args:%s', event, args);
 			if('console.log' == args.tag){
 				var params = args.arguments;
+				// console.log(args);
 				if(params){
-					console.log.apply(console,params);
+					var _args = [];
+					for(var idx in params){
+						_args[idx] = params[idx];
+					}
+					var log_args = ['['+args.source+']'].concat(_args);
+					// console.log.apply(console,log_args);
+					self.log.apply(self, log_args);
 				}
 			} else if('check_loc'==args.tag){
 				var loc = args.loc;
 				var uid = args.uid;
-				console.log('loc:', loc);
+				self.log('loc:', loc);
 				var simple_loc = loc;
 				var idx = loc.indexOf('#');
 				if(idx>0){
@@ -308,7 +323,7 @@ var window_helper = Base.extend({
 				}
 				var func = find_func(loc);
 				if(self.wait_mbox_homepage_call_manual_fun&&loc.indexOf('mbox/homepage')>=0){
-					console.log('wait_mbox_homepage_call_manual_fun:', loc);
+					self.log('wait_mbox_homepage_call_manual_fun:', loc);
 					var man_func = find_func(loc, manual_url_mapping);
 					man_func.apply(self, self.wait_mbox_homepage_call_manual_fun);
 					self.wait_mbox_homepage_call_manual_fun = null;
@@ -337,7 +352,7 @@ var window_helper = Base.extend({
 			} else if('check_self_dir_end' == args.tag){
 				var rs = args.rs;
 				self.fetch_helper.on_check_dir(args, ()=>{
-					console.log('check dir end ok!');
+					self.log('check dir end ok!');
 				});
 			} else if('to_check_file_dir' == args.tag){
 				self.fetch_helper.check_dir_exist(args);
@@ -367,14 +382,14 @@ var window_helper = Base.extend({
 						
 					}
 				}
-				console.log('直接弹 转移任务 管理窗口');
+				self.log('直接弹 转移任务 管理窗口');
 				self.dialog(args.params);
 			} else if('find_share_btn_ok' == args.tag){
 				var loc = args.loc;
 				// var func = find_func(loc, manual_url_mapping);
 				var task = args.task;
 				var gparams = args.gparams;
-				console.log('ready to check next elem:', loc);
+				self.log('ready to check next elem:', loc);
 				if(loc.indexOf('mbox/homepage')>=0){
 					var func = find_func(loc, manual_url_mapping);
 					func.apply(self, [gparams, task]);
@@ -386,7 +401,7 @@ var window_helper = Base.extend({
 				if(args.hasOwnProperty('skip')){
 					var skip = args.skip;
 					if(skip){
-						console.log('transfer_ok_continue:', args);
+						self.log('transfer_ok_continue:', args);
 					}
 				}
 				self.fetch_helper.on_transfer_continue(args);
@@ -407,7 +422,7 @@ var window_helper = Base.extend({
 				if(self.alertwin){
 					var script_val = 'document.write(\'<h1>'+args.msg+'</h1>\');';
 					self.alertwin.webContents.executeJavaScript(script_val).then((result)=>{
-						console.log('alert_window execute result:', result);
+						self.log('alert_window execute result:', result);
 					});
 					self.alertwin.setClosable(true);
 				} else {

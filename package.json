@@ -19,7 +19,9 @@
     "jquery": "3.4.1",
     "async": "3.1.0",
     "sqlite3": "4.1.0",
-    "electron-unhandled": "3.0.1"
+    "electron-unhandled": "3.0.1",
+    "electron-log": "4.0.0",
+    "electron-cfg": "1.0.3"
   },
   "devDependencies": {
     "electron": "5.0.0-beta.7",

@@ -3,6 +3,7 @@ var helpers = {
 	// point:"http://192.168.0.101:8080/",
 	point:"http://127.0.0.1:8080/",
 	data_dir_name:"._datas",
+	log_dir_name:"logs",
 	noop: function() {},
 	scale_size:function(get_size){
 	  var bit = 'B';

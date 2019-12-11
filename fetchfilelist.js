@@ -61,7 +61,7 @@ var fetch_file_list_helper = Base.extend({
 		file_list_db.query_mult_params({'task_id': task_id, 'isdir':0, 'app_id': app_id, 'pin': 0}, (file_list)=>{
 			if(file_list && file_list.length>0){
 				var file = file_list[0];
-				console.log('file:', file);
+				self.context.log('file:', file);
 				file_list_db.update_by_id(file.id, {'pin': 4}, function(){
 					setTimeout(()=>{
 						sender.send('asynchronous-spider', {'tag':'start_transfer', 'parent_item': {'id':file.parent}, 'file':file, 'task': task});
@@ -126,14 +126,14 @@ var fetch_file_list_helper = Base.extend({
 		folder_file.sub_folders = [];
 		var get_count=(main_folder_file, sub_folders, pos, callback)=>{
 			if(pos>=sub_folders.length){
-				console.log('pos >= length:',pos, sub_folders.length);
+				self.context.log('pos >= length:',pos, sub_folders.length);
 				callback(true, main_folder_file);
 				return;
 			}
 			// console.log('main_folder_file.total > transfer_bulk_size',main_folder_file.total,transfer_bulk_size);
 			if(main_folder_file.total > transfer_bulk_size){
 				//callback can not bulk
-				console.log('main_folder_file.total > transfer_bulk_size:', main_folder_file.total, transfer_bulk_size);
+				self.context.log('main_folder_file.total > transfer_bulk_size:', main_folder_file.total, transfer_bulk_size);
 				callback(false, main_folder_file);
 			} else {
 				var __folder_file = sub_folders[pos];
@@ -142,7 +142,7 @@ var fetch_file_list_helper = Base.extend({
 					var total_cnt = cnt_row.cnt;
 					if(total_cnt>transfer_bulk_size || total_cnt == 0){
 						//callback can not bulk
-						console.log('total_cnt > transfer_bulk_size or total_cnt is 0:', total_cnt);
+						self.context.log('total_cnt > transfer_bulk_size or total_cnt is 0:', total_cnt);
 						callback(false, main_folder_file);
 						return;
 					} else {
@@ -155,7 +155,7 @@ var fetch_file_list_helper = Base.extend({
 									var file_folder_cnt = all_fcnt_row.cnt;
 									if(file_folder_cnt == 0){//have folder pin not equal 0
 										//callback can not bulk
-										console.log('file_folder_cnt is 0,have folder pin not equal 0');
+										self.context.log('file_folder_cnt is 0,have folder pin not equal 0');
 										callback(false, main_folder_file);
 									} else if(file_folder_cnt+file_cnt == total_cnt){
 										//recursive count
@@ -178,7 +178,7 @@ var fetch_file_list_helper = Base.extend({
 										
 									} else {//part file&folder pin not equal 0
 										//callback can not bulk
-										console.log('file_folder_cnt != total_cnt:', file_folder_cnt, total_cnt);
+										self.context.log('file_folder_cnt != total_cnt:', file_folder_cnt, total_cnt);
 										callback(false, main_folder_file);
 									}
 								});
@@ -261,7 +261,7 @@ var fetch_file_list_helper = Base.extend({
 			} else {
 				self.recursive_count_folder_file(task, parent_item, (may_bulk, main_folder)=>{
 					if(may_bulk){
-						console.log('bulk transfer:', main_folder.filename, ',total:', main_folder.total, ',size:', main_folder.size);
+						self.context.log('bulk transfer:', main_folder.filename, ',total:', main_folder.total, ',size:', main_folder.size);
 						recursive_update_folder_sub_file(0, main_folder.sub_folders.concat([main_folder]),()=>{
 							setTimeout(()=>{
 								sender.send('asynchronous-spider', {'tag':'start_transfer', 'parent_item': parent_item, 'file':parent_item, 'task': task});
@@ -312,7 +312,7 @@ var fetch_file_list_helper = Base.extend({
 			file_list_db.query_mult_params({'parent': parent_item.id, 'task_id':task_id, 'isdir':0, 'app_id': app_id, 'pin': 0}, (file_list)=>{
 				if(file_list && file_list.length>0){
 					var file = file_list[0];
-					console.log('fetch_sub_file_list file:', file.filename);
+					self.context.log('fetch_sub_file_list file:', file.filename);
 					file_list_db.update_by_id(file.id, {'pin': 4}, function(){
 						setTimeout(()=>{
 							sender.send('asynchronous-spider', {'tag':'start_transfer', 'parent_item': parent_item, 'file':file, 'task': task});
@@ -377,14 +377,14 @@ var fetch_file_list_helper = Base.extend({
 		if(file.isdir == 1){
 			// console.log('bulk transfer file:', file.path);
 			if(failed){
-				console.log('dir tranfer failed!:', file.path);
+				self.context.log('dir tranfer failed!:', file.path);
 				// file_list_db.update_by_id(file.id, {'pin': 6}, function(){
 				// 	self.transfer(task);
 				// });
 				self.transfer(task);
 				return;
 			} else {
-				console.log('recursive_update_folder_sub_file sub_folders:', file.sub_folders.length);
+				self.context.log('recursive_update_folder_sub_file sub_folders:', file.sub_folders.length);
 				recursive_update_folder_sub_file(0, file.sub_folders.concat([file]),()=>{
 					if(file.hasOwnProperty('total')){
 						var cnt = file['total'];
@@ -419,7 +419,7 @@ var fetch_file_list_helper = Base.extend({
 			}
 		} else {
 			if(failed){
-				console.log('file tranfer failed!:', file.path);
+				self.context.log('file tranfer failed!:', file.path);
 				// file_list_db.update_by_id(file.id, {'pin': 6}, function(){
 				// 	self.fetch_sub_file_list(task, parent_item);
 				// });
@@ -671,7 +671,7 @@ var fetch_file_list_helper = Base.extend({
 					var __item = items[0];
 					self.cache[key] = __item;
 					if(has_records){
-						console.log('to update task:', __item);
+						self.context.log('to update task:', __item);
 						__item.pin = 0;
 						transfer_tasks_db.update_by_id(__item.id, {'pin': 0}, ()=>{
 							cb(__item);
@@ -739,7 +739,7 @@ var fetch_file_list_helper = Base.extend({
 			file_list_db.query_mult_params({'task_id': task_id, 'isdir':1, 'app_id': app_id, 'pin': 1}, (items)=>{
 				if(items && items.length>0){
 					var file_item = items[0];
-					console.log('to_continue_fetch dir path:', file_item.path);
+					self.context.log('to_continue_fetch dir path:', file_item.path);
 					task.hide_resume = true;
 					sender.send('asynchronous-spider', {'tag':'fetched_sub_file_list_continue', 'parent_dir': parent_dir, 'fid_list':[file_item.id], 'target_dir': target_dir, 'task':task});
 				}else{
@@ -779,7 +779,7 @@ var fetch_file_list_helper = Base.extend({
 		file_list_db.query_mult_params({'task_id': task_id, 'isdir':1, 'app_id': app_id, 'pin': 0}, (items)=>{
 			if(items && items.length>0){
 				var file_item = items[0];
-				console.log('dir path:', file_item.path);
+				self.context.log('dir path:', file_item.path);
 				file_list_db.update_by_id(file_item.id, {'pin': 1},()=>{
 					sender.send('asynchronous-spider', {'tag':'fetched_sub_file_list_continue', 'parent_dir': parent_dir, 'fid_list':[file_item.id], 'target_dir': target_dir, 'task':_task});
 				});
@@ -826,7 +826,7 @@ var fetch_file_list_helper = Base.extend({
 		this.check_out_task(params, parent_dir, target_dir, app_id, (item)=>{
 			var _task = item;
 			if(result.errno!=0){
-				console.log('on_fetched error result:', result);
+				self.context.log('on_fetched error result:', result);
 			}
 			if(result.errno == 0 || result.errno == -9){
 				if(has_records){

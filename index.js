@@ -1,5 +1,7 @@
 const { app, BrowserWindow, Menu, ipcMain, dialog, session} = require('electron');
 const unhandled = require('electron-unhandled');
+const logger = require('electron-log');
+const cfg = require('electron-cfg');
 const request = require('request');
 const fs = require('fs');
 const os =  require('os');
@@ -8,7 +10,10 @@ var path = require('path');
 var base_dir = os.homedir();
 const helpers = require("./helper.core.js");
 const window_helper = require("./open_window.js");
+// logger.transports.file.level = false;
+// logger.transports.console.level = false;
 var data_dir = path.join(base_dir, helpers.data_dir_name);
+// var log_dir = path.join(base_dir, helpers.log_dir_name);
 var dao = null;// wait data_dir make success
 if(!fs.existsSync(data_dir)){
   fs.mkdirSync(data_dir);
@@ -18,7 +23,12 @@ if(!fs.existsSync(data_dir)){
   dao = require('./dao.js');// wait data_dir make success
   console.log('['+data_dir+']dir exist!');
 }
-
+// if(!fs.existsSync(log_dir)){
+//   fs.mkdirSync(log_dir);
+//   console.log('['+log_dir+']dir make success!');
+  
+// }
+// logger.transports.file.file = path.join(log_dir, helpers.log_dir_name);
 const Multi_loader = require('./multi.tokens.loader.js');
 const account = require('./account.js');
 // const adapter = new FileSync(path.join(data_dir, "db.json"))
@@ -67,7 +77,7 @@ function ready_cookie_monitor(){
 }
 const createWindow = () => {
   // Create the browser window.
-  mainWindow = new BrowserWindow({
+  mainWindow = cfg.window().create({
     width: 960,
     height: 650,
 	show: false,
@@ -80,6 +90,19 @@ const createWindow = () => {
       allowRunningInsecureContent: true
     }
   });
+ //  mainWindow = new BrowserWindow({
+ //    width: 960,
+ //    height: 650,
+	// show: false,
+	// title:'Panclient',
+	// backgroudColor: '#2e2c29',
+ //    webPreferences: {
+ //      nodeIntegration: true,
+ //      webSecurity: false,
+	//   devTools:true,
+ //      allowRunningInsecureContent: true
+ //    }
+ //  });
   ready_cookie_monitor();
   ipcMain.on('asynchronous-message', (event, arg) => {
     console.log(arg) // prints "ping"
@@ -285,7 +308,7 @@ function correct_download_task(){
 		gSender.send("asynchronous-reply",{"tag":"error", "error":"sync download task ok!"})
 	});
 }
-var wh = new window_helper(account, mainWindow, {width:1200,height:650,'url':'https://pan.baidu.com/'});
+var wh = new window_helper(account, mainWindow, {width:1200,height:650,'url':'https://pan.baidu.com/', 'logger':logger});
 function open_bd_pan(){
 	wh.open();
 }

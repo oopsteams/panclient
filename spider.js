@@ -1,15 +1,15 @@
-
-
 const ele_remote = require('electron').remote;
-const max_retry_cnt = 5;
-var inject_btn_group = false;
-var to_find_share_btn = false;
 if(ele_remote){
+	const max_retry_cnt = 5;
+	var inject_btn_group = false;
+	var to_find_share_btn = false;
+	
+	var current_tag = '';
 	window.test_recursive = (task_id,fid)=>{
 		ipcRenderer.send('asynchronous-spider-backend', {"tag":"test_recursive", "task_id":task_id, 'folder_id':fid});
 	};
 	function send_log(){
-		ipcRenderer.send('asynchronous-spider-backend', {"tag":"console.log", "arguments":arguments});
+		ipcRenderer.send('asynchronous-spider-backend', {"tag":"console.log", "arguments":arguments, "source":current_tag});
 	}
 	// test_recursive(1575901700377, '738885055643055')
 	var helpers = {
@@ -122,6 +122,7 @@ if(ele_remote){
 	var tm_id = Date.now()+'_'+Math.round(Math.random()*1000);
 	ipcRenderer.on('asynchronous-spider', function(event, args){
 		// console.log("recv args:", args);
+		current_tag = args.tag;
 		if('start'==args.tag){
 			var base_dir = args.base_dir;
 			if(args.params){
@@ -144,7 +145,7 @@ if(ele_remote){
 				to_find_share_btn = true;
 				setTimeout(()=>{
 					fetch_element_until_fetched(options, (elems)=>{
-						console.log('share button elems:', elems);
+						// console.log('share button elems:', elems);
 						if(elems && elems.length>0){
 							ipcRenderer.send('asynchronous-spider-backend', {"tag":"find_share_btn_ok", "loc":document.location.href, 'task':task, 'gparams':gparams});
 							setTimeout(()=>{
@@ -165,7 +166,7 @@ if(ele_remote){
 			send_log('_options:', _options);
 			setTimeout(()=>{
 				fetch_element_until_fetched(options, (elems)=>{
-					send_log('group elems:', elems);
+					// send_log('group elems:', elems);
 					if(elems && elems.length>0){
 						elems[0].click();
 						setTimeout(()=>{next_check_share_folder(args)}, 2000);
