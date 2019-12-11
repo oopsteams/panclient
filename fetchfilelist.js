@@ -3,7 +3,7 @@ const request = require('request');
 const helpers = require("./helper.core.js")
 const Base = require("./base.js")
 const Dao = require('./dao.js')
-const transfer_bulk_size = 999;
+const transfer_bulk_size = 499;
 var file_list_db = new Dao({'type':'list', 'name':'file_list', 
 'fields':[{name:"id", type:'VARCHAR', len:20},
 		{name:"category", type:'INT'},
@@ -131,9 +131,9 @@ var fetch_file_list_helper = Base.extend({
 				return;
 			}
 			// console.log('main_folder_file.total > transfer_bulk_size',main_folder_file.total,transfer_bulk_size);
-			if(main_folder_file.total > transfer_bulk_size){
+			if(main_folder_file.total+main_folder_file.sub_folders.length > transfer_bulk_size){
 				//callback can not bulk
-				self.context.log('main_folder_file.total > transfer_bulk_size:', main_folder_file.total, transfer_bulk_size);
+				self.context.log('main_folder_file.total > transfer_bulk_size:', main_folder_file.total, main_folder_file.sub_folders.length, transfer_bulk_size);
 				callback(false, main_folder_file);
 			} else {
 				var __folder_file = sub_folders[pos];
@@ -165,13 +165,20 @@ var fetch_file_list_helper = Base.extend({
 												main_folder_file.total += file_cnt;
 												main_folder_file.size += sub_size;
 												// console.log('recursive to fetch sub folder:', _sub_folders);
-												get_count(main_folder_file, _sub_folders, 0, (come_on, _main_folder_file)=>{
-													if(come_on){
-														get_count(main_folder_file, sub_folders, pos+1, callback);
-													} else {
-														callback(false, main_folder_file);
-													}
-												});
+												if(main_folder_file.total+main_folder_file.sub_folders.length > transfer_bulk_size){
+													//callback can not bulk
+													self.context.log('main_folder_file.total > transfer_bulk_size:', main_folder_file.total, main_folder_file.sub_folders.length, transfer_bulk_size);
+													callback(false, main_folder_file);
+												} else {
+													get_count(main_folder_file, _sub_folders, 0, (come_on, _main_folder_file)=>{
+														if(come_on){
+															get_count(main_folder_file, sub_folders, pos+1, callback);
+														} else {
+															callback(false, main_folder_file);
+														}
+													});
+												}
+												
 											});
 										});
 										
@@ -187,7 +194,13 @@ var fetch_file_list_helper = Base.extend({
 								update_size_count(__folder_file.id, task_id, app_id,(sub_size)=>{
 									main_folder_file.total += file_cnt;
 									main_folder_file.size += sub_size;
-									get_count(main_folder_file, sub_folders, pos+1, callback);
+									if(main_folder_file.total+main_folder_file.sub_folders.length > transfer_bulk_size){
+										//callback can not bulk
+										self.context.log('main_folder_file.total > transfer_bulk_size:', main_folder_file.total, main_folder_file.sub_folders.length, transfer_bulk_size);
+										callback(false, main_folder_file);
+									} else {
+										get_count(main_folder_file, sub_folders, pos+1, callback);
+									}
 								});
 							}
 						});
@@ -242,7 +255,7 @@ var fetch_file_list_helper = Base.extend({
 		function recursive_update_folder_sub_file(pos, folders, cb){
 			if(pos<folders.length){
 				var folder = folders[pos];
-				file_list_db.update_by_id(folder.id, {'pin': 4, 'tm':helpers.now()}, function(){
+				file_list_db.update_by_id(folder.id, {'pin': 4, 'tm':helpers.now()+pos}, function(){
 					folder.pin = 4;
 					file_list_db.update_by_conditions({'parent':folder.id, 'task_id':task_id, }, {'pin': 2}, function(){
 						recursive_update_folder_sub_file(pos+1, folders, cb);
@@ -260,7 +273,7 @@ var fetch_file_list_helper = Base.extend({
 			} else {
 				self.recursive_count_folder_file(task, parent_item, (may_bulk, main_folder)=>{
 					if(may_bulk){
-						self.context.log('bulk transfer:', main_folder.filename, ',total:', main_folder.total, ',size:', main_folder.size);
+						self.context.log('bulk transfer:', main_folder.filename, ',file count:', main_folder.total,', folder count:', main_folder.sub_folders.length, ',size:',helpers.scale_size(main_folder.size));
 						recursive_update_folder_sub_file(0, [main_folder].concat(main_folder.sub_folders),()=>{
 							setTimeout(()=>{
 								sender.send('asynchronous-spider', {'tag':'start_transfer', 'parent_item': parent_item, 'file':parent_item, 'task': task});
