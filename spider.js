@@ -313,13 +313,13 @@ if(ele_remote){
 			}
 		} else if('to_transfer_confirm' == args.tag){
 			var parent_item= args.parent_item, file=args.file, task= args.task, target_dir = args.target_dir;
-			var tmp_max_retry_cnt = 2;
+			var tmp_max_retry_cnt = 3;
 			
 			function to_transfer_file(task, file, target_dir,tmp_retry_cnt){
 				bd_proxy_api.transfer_file(task, file, target_dir, (err, rs)=>{
 					var maybe_failed = false;
 					if(rs){
-						if(rs.errno == 0){
+						if([0, -8].indexOf(rs.errno)>= 0){
 							global_base_params.remain = global_base_params.remain - file.size;
 							ipcRenderer.send('asynchronous-spider-backend', {"tag":"transfer_ok_continue", "task":task, "file": file, "parent_item": parent_item});
 						}else{
@@ -345,7 +345,7 @@ if(ele_remote){
 										to_transfer_file(task, file, target_dir, tmp_retry_cnt + 1);
 									}
 								});
-							}, 2000+tmp_retry_cnt*500);
+							}, 5000+tmp_retry_cnt*800);
 						} else {
 							send_log('to_transfer_confirm retry all failed err:', rs);
 							ipcRenderer.send('asynchronous-spider-backend', {"tag":"transfer_ok_continue_failed", "task":task, "file": file, "parent_item": parent_item});
@@ -626,7 +626,7 @@ if(ele_remote){
 				from_uk:task.from_uk,
 				msg_id:task.msg_id,
 				path:target_dir,
-				ondup:'newcopy',
+				ondup:'',//newcopy
 				async:1,
 				type:2,
 				gid:task.gid,
@@ -1105,7 +1105,56 @@ if(ele_remote){
 		}
 		
 	};
-	
+	/////////////////////////////////////////TEst Transfer
+	window.test_transfer_file = function(params, form_data,callback){
+		var path = '/mbox/msg/transfer';
+		
+		// var params = {
+		// 	bdstoken:global_base_params.bdstoken,
+		// 	channel:global_base_params.channel,
+		// 	web:global_base_params.web[0],
+		// 	app_id:task.app_id,
+		// 	logid:baidu_api.build_log_id(),
+		// 	clienttype:global_base_params.clienttype
+		// };
+		params['logid'] = baidu_api.build_log_id();
+		var url = _build_get_url(path, params);
+		// var form_data = {
+		// 	from_uk:task.from_uk,
+		// 	msg_id:task.msg_id,
+		// 	path:target_dir,
+		// 	ondup:'newcopy',
+		// 	async:1,
+		// 	type:2,
+		// 	gid:task.gid,
+		// 	fs_ids:'['+file.id+']'
+		// }
+		console.log('url:', url);
+		function re_call_fun(retry_cnt){
+			if(!retry_cnt){
+				retry_cnt = 0;
+			}
+			baidu_api.post_req(url, form_data, 'formdata', (rs)=>{
+				if(rs.errno!=0){
+					send_log('transfer_file err rs:', rs);
+				}
+				if(callback){
+					callback(null, rs);
+				}
+			},(err)=>{
+				if(retry_cnt < max_retry_cnt){
+					send_log('transfer_file to retry call:', err);
+					setTimeout(()=>{re_call_fun(retry_cnt+1);}, 1000 + retry_cnt * 100);
+				} else {
+					if(callback){
+						callback("failed", null);
+					}
+				}
+			});
+		}
+		re_call_fun(0);
+		
+	}
 	//////////////////////come from baidu
 	var baidu_api = function() {
 		var e = function(e) {

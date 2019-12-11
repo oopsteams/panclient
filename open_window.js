@@ -376,7 +376,7 @@ var window_helper = Base.extend({
 								self.wait_mbox_homepage_call_manual_fun = [gparams, _t];
 								func.apply(self, [gparams, _t]);
 							}
-						},{'modal':true, 'width':360, 'height':200})
+						},{'modal':false, 'width':360, 'height':200})
 						
 						return;
 						

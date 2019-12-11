@@ -14,3 +14,23 @@ select id,name from transfer_tasks;
 select id, parent, filename, size from file_list where task_id= and parent=
 delete from file_list where task_id= and parent=
 delete from file_list where task_id= and id=
+
+var params={
+	bdstoken:'82c3dc0e7fae33c5a0da28b3a3a6347a',
+	channel: 'chunlei',
+	web: 1,
+	app_id: 250528,
+	logid: 'MTU3NjA2NDQ3NTM0OTAuNTUxNDU4OTQ0ODI2MDU0NQ==',
+	clienttype: 0
+}
+var formdata={
+	from_uk: 1944188803,
+	msg_id: '7293526278106259653',
+	path: '/_tmp',
+	ondup: 'newcopy',
+	async: 1,
+	type: 2,
+	gid: '56162499896297783',
+	fs_ids: [776621870309946]
+}
+
