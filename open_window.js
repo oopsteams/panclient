@@ -142,6 +142,12 @@ var window_helper = Base.extend({
 		this.wait_mbox_homepage_call_manual_fun = null;
 		this.last_web_uid = {};
 		this.logger = options&&options.logger?options.logger:console.log;
+		this.intercepted = false;
+	},
+	window_destroy:function(){
+		var self = this;
+		self.first_show = false;
+		fetched_base_params_ok = false;
 	},
 	log:function(){
 		var _args = [];
@@ -275,7 +281,9 @@ var window_helper = Base.extend({
 			self.win.show();
 		});
 		this.win.on('closed', () => {
-		  self.win = null;
+			self.first_show = false;
+			self.win = null;
+			self.window_destroy();
 		});
 		this.win.on('show', (event) => {
 		  // console.log('win handler show! event:', event);
@@ -335,9 +343,9 @@ var window_helper = Base.extend({
 				args.tag = 'click';
 				self.win.webContents.send('asynchronous-spider', args);
 			} else if("intercept" == args.tag){
-				interceptHttp.apply(self);
+				// interceptHttp.apply(self);
 			} else if('close-intercept' == args.tag){
-				unInterceptHttp.apply(self);
+				// unInterceptHttp.apply(self);
 			} else if('fetched_base_params' == args.tag){
 				helpers.extend(fetched_global_base_params, args.params);
 				// console.log('fetched_global_base_params:', fetched_global_base_params);
@@ -441,11 +449,14 @@ var window_helper = Base.extend({
 				self.fetch_helper.test_recursive(task_id, folder_id);
 			}
 		});
-		if(this.first_show){
-			self.win.show();
-		}
+		// if(this.first_show){
+		// 	self.win.show();
+		// }
 		// this.win.webContents.openDevTools();
-		interceptHttp.apply(this);
+		if(!self.intercepted){
+			interceptHttp.apply(this);
+			self.intercepted = true;
+		}
 		this.win.loadURL(this.options['url']);
 	}
 });

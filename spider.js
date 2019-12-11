@@ -322,6 +322,13 @@ if(ele_remote){
 						if([0, -8].indexOf(rs.errno)>= 0){
 							global_base_params.remain = global_base_params.remain - file.size;
 							ipcRenderer.send('asynchronous-spider-backend', {"tag":"transfer_ok_continue", "task":task, "file": file, "parent_item": parent_item});
+						}else if(rs.errno == 2148){
+							rs = confirm("本次会话保存文件数量超过限制! 单击“确定”重新尝试一次。单击“取消”停止。建议取消,关闭应用,重新打开尝试.");
+							if(rs){
+								maybe_failed = true;
+							} else {
+								return;
+							}
 						}else{
 							maybe_failed = true;
 						}
