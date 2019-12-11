@@ -8,6 +8,9 @@ if(ele_remote){
 	window.test_recursive = (task_id,fid)=>{
 		ipcRenderer.send('asynchronous-spider-backend', {"tag":"test_recursive", "task_id":task_id, 'folder_id':fid});
 	};
+	function send_log(){
+		ipcRenderer.send('asynchronous-spider-backend', {"tag":"console.log", "arguments":arguments});
+	}
 	// test_recursive(1575901700377, '738885055643055')
 	var helpers = {
 		isArray: function(value) {
@@ -159,10 +162,10 @@ if(ele_remote){
 			var gparams = args.gparams;
 			window._options = {};
 			helpers.extend(window._options, options);
-			console.log('_options:', _options);
+			send_log('_options:', _options);
 			setTimeout(()=>{
 				fetch_element_until_fetched(options, (elems)=>{
-					console.log('group elems:', elems);
+					send_log('group elems:', elems);
 					if(elems && elems.length>0){
 						elems[0].click();
 						setTimeout(()=>{next_check_share_folder(args)}, 2000);
@@ -171,7 +174,7 @@ if(ele_remote){
 			}, 300);
 		}else if('inject_btn_group' == args.tag){
 			var options = args.options;
-			console.log('recv inject_btn_group command!');
+			send_log('recv inject_btn_group command!');
 			if(!inject_btn_group){
 				inject_btn_group = true;
 				setTimeout(()=>{
@@ -270,7 +273,7 @@ if(ele_remote){
 		}else if('fetched_sub_file_list_continue' == args.tag){
 			var fid_list = args.fid_list, parent_dir = args.parent_dir, target_dir=args.target_dir;
 			var task = args.task;
-			console.log('fetched_sub_file_list_continue fid_list:', fid_list, ',parent_dir:', parent_dir);
+			send_log('fetched_sub_file_list_continue fid_list:', fid_list, ',parent_dir:', parent_dir);
 			var params={
 				msgid:task.msg_id,
 				fromuk:task.from_uk, 
@@ -288,7 +291,7 @@ if(ele_remote){
 			var parent_item= args.parent_item, file=args.file, task= args.task;
 			var dir = args.dir;
 			check_self_list(dir, true, (rs)=>{
-				console.log('check_self_dir final rs:', rs);
+				send_log('check_self_dir final rs:', rs);
 				if(rs){
 					ipcRenderer.send('asynchronous-spider-backend', {"tag":"check_self_dir_end", "dir":dir, "rs":rs, "task":task, "file": file, "parent_item": parent_item});
 				}
@@ -301,7 +304,7 @@ if(ele_remote){
 				global_base_params.remain = global_base_params.quota.free;
 			}
 			var remain = global_base_params.remain;
-			console.log('remain:%s, file size:%s', remain, file.size);
+			send_log('remain:%s, file size:%s', remain, file.size);
 			if(remain > file.size){
 				ipcRenderer.send('asynchronous-spider-backend', {"tag":"to_check_file_dir", "task":task, "file": file, "parent_item": parent_item});
 			} else {
@@ -309,7 +312,7 @@ if(ele_remote){
 			}
 		} else if('to_transfer_confirm' == args.tag){
 			var parent_item= args.parent_item, file=args.file, task= args.task, target_dir = args.target_dir;
-			var tmp_max_retry_cnt = 1;
+			var tmp_max_retry_cnt = 2;
 			
 			function to_transfer_file(task, file, target_dir,tmp_retry_cnt){
 				bd_proxy_api.transfer_file(task, file, target_dir, (err, rs)=>{
@@ -326,25 +329,24 @@ if(ele_remote){
 					}
 					if(maybe_failed){
 						if(tmp_retry_cnt<tmp_max_retry_cnt){
-							console.log('to_transfer_confirm err! wait 2 seconds,will to retry!:', rs);
+							send_log('to_transfer_confirm err! wait 2 seconds,will to retry! errno:', rs.errno, ', path:',file.path);
 							//TODO check file or folder exists.
-							
 							setTimeout(()=>{
 								var _check_dir = target_dir + "/" + file.filename;
 								console.log('检测目标文件是否已存在:', _check_dir);
 								check_self_list(_check_dir, false, (rs)=>{
 									if(rs.errno == 0){
-										console.log('目标文件已存在,继续执行:', file);
+										send_log('目标文件已存在,继续执行:', file);
 										global_base_params.remain = global_base_params.remain - file.size;
 										ipcRenderer.send('asynchronous-spider-backend', {"tag":"transfer_ok_continue", "task":task, "file": file, "parent_item": parent_item, "skip":true});
 									} else {
-										console.log('check_self_list rs:', rs);
+										send_log('check_self_list rs:', rs);
 										to_transfer_file(task, file, target_dir, tmp_retry_cnt + 1);
 									}
 								});
-							}, 2000);
+							}, 2000+tmp_retry_cnt*500);
 						} else {
-							console.log('to_transfer_confirm err:', rs);
+							send_log('to_transfer_confirm retry all failed err:', rs);
 							ipcRenderer.send('asynchronous-spider-backend', {"tag":"transfer_ok_continue_failed", "task":task, "file": file, "parent_item": parent_item});
 						}
 					}

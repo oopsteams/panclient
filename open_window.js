@@ -283,7 +283,12 @@ var window_helper = Base.extend({
 		
 		ipcMain.on('asynchronous-spider-backend', (event, args) => {
 			// console.log('ipcMain backend recv event:%s, args:%s', event, args);
-			if('check_loc'==args.tag){
+			if('console.log' == args.tag){
+				var params = args.arguments;
+				if(params){
+					console.log.apply(console,params);
+				}
+			} else if('check_loc'==args.tag){
 				var loc = args.loc;
 				var uid = args.uid;
 				console.log('loc:', loc);
