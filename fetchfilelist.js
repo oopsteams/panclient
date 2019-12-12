@@ -85,7 +85,7 @@ var fetch_file_list_helper = Base.extend({
 										'id': task.id,
 										'over': false,
 										'task': task,
-										'err':'存在转存失败文件,请尝试重新转存按钮!'
+										'err':'存在转存失败文件,请尝试重新转存!'
 									});
 								});
 							});
@@ -287,39 +287,6 @@ var fetch_file_list_helper = Base.extend({
 			}
 		}
 		
-		// function check_bulk_conditions(){
-		// 	file_list_db.query_count({'app_id': app_id, 'task_id':task_id, 'parent':parent_item.id},(cnt_row)=>{
-		// 		if(cnt_row){
-		// 			var total_cnt = cnt_row.cnt;
-		// 			file_list_db.query_count({'app_id': app_id, 'task_id':task_id, 'parent':parent_item.id, 'isdir':0, 'pin':0},(fcnt_row)=>{
-		// 				if(fcnt_row){
-		// 					var file_cnt = fcnt_row.cnt;
-		// 					if(!need_one_by_one && file_cnt < transfer_bulk_size && file_cnt == total_cnt){
-		// 						parent_item['total'] = file_cnt;
-		// 						file_list_db.query_sum('size', {'parent':parent_item.id, 'task_id':task_id}, (sum_row)=>{
-		// 							if(sum_row){
-		// 								parent_item.size = sum_row.val;
-		// 							}
-		// 							file_list_db.update_by_conditions({'parent':parent_item.id, 'task_id':task_id}, {'pin': 2}, function(){
-		// 								setTimeout(()=>{
-		// 									sender.send('asynchronous-spider', {'tag':'start_transfer', 'parent_item': parent_item, 'file':parent_item, 'task': task});
-		// 								}, 100);
-		// 							});
-		// 						});
-		// 					} else {
-		// 						console.log('need_one_by_one:',need_one_by_one,',file_cnt:',file_cnt,',folder total_cnt:',total_cnt);
-		// 						one_by_one();
-		// 					}
-		// 				} else {
-		// 					next_step();
-		// 				}
-		// 			});
-		// 		} else {
-		// 			next_step();
-		// 		}
-		// 	});
-		// }
-		
 		function one_by_one(){
 			file_list_db.query_mult_params({'parent': parent_item.id, 'task_id':task_id, 'isdir':0, 'app_id': app_id, 'pin': 0}, (file_list)=>{
 				if(file_list && file_list.length>0){
@@ -458,7 +425,11 @@ var fetch_file_list_helper = Base.extend({
 		var self = this;
 		var task_id = task.id;
 		var app_id = task.app_id;
-		
+		if(task.hasOwnProperty('doing')&&task.doing){
+			return;
+		} else {
+			task.doing = true;
+		}
 		if(retry){
 			task.retry=true;
 			file_list_db.update_by_conditions({'pin':4, 'task_id':task_id, 'isdir':1}, {'pin': 3}, function(){
