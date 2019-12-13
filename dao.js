@@ -434,7 +434,7 @@ var Dao = Base.extend(
 					return;
 				}
 				var _item = mapping(item_list[pos]);
-				if(_item.hasOwnProperty('id')){
+				if(_item && _item.hasOwnProperty('id')){
 					self.get('id', _item.id, (_get_item)=>{
 						if(!_get_item){
 							self.put(_item, ()=>{
@@ -456,10 +456,12 @@ var Dao = Base.extend(
 							}
 						}
 					});
-				} else {
+				} else if(_item) {
 					self.put(_item, ()=>{
 						save_by_check(pos+1);
 					});
+				} else {
+					save_by_check(pos+1);
 				}
 			}
 			save_by_check(0);

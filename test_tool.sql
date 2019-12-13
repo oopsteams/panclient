@@ -36,3 +36,18 @@ var formdata={
 
 select * from file_list where parent in ('321272493794807','948232608263580','511377925021327','1046137552057128','376397455377943','952049922161103','114260130615046')
 
+var params = {
+				msgid:'4121720200017697986',
+				page:1,
+				num:50,
+				fromuk:'1944188803',
+				_gid:'56162499896297783',
+				ftype:2,
+				fid:'935572148200347',
+				bdtk:'82c3dc0e7fae33c5a0da28b3a3a6347a',
+				ch:'chunlei',
+				web_val:1,
+				appid:250528,
+				logid:baidu_api.build_log_id(),
+				ctype:0
+			};

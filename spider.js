@@ -258,12 +258,24 @@ if(ele_remote){
 			// console.log('deep_fetch_file_list_by_fid continue.');
 			var params = args.params, fid_list = args.fid_list, parent_dir = args.parent_dir, target_dir=args.target_dir, pos = args.pos;
 			var task = args.task;
-			deep_fetch_file_list_by_fid(fid_list, parent_dir, target_dir, params, pos, false, task.name);
+			var target_type = 'all';
+			if(args.hasOwnProperty('target_type')){
+				target_type = args.target_type;
+			}
+			deep_fetch_file_list_by_fid(fid_list, parent_dir, target_dir, params, pos, false, task.name, target_type);
 		}else if('fetch_file_list_complete'==args.tag){
 			// alert('文件分析完成!');
 		}else if('fetched_bd_context_ready' == args.tag){
 			var fid_list = args.fid_list;
 			var global_params = args.global_params;
+			var target_type = 'all';
+			var _num = 30;
+			if(args.hasOwnProperty('target_type')){
+				target_type = args.target_type;
+				if('dir' == target_type){
+					_num = 10;
+				}
+			}
 			if(!global_base_params.shared_params && global_params.share_params){
 				global_base_params.shared_params = global_params.share_params;
 			}
@@ -277,7 +289,7 @@ if(ele_remote){
 							var target_dir = t;
 							send_log('target_dir:', target_dir);
 							var parent_dir = fetch_parent_dir();
-							deep_fetch_file_list_by_fid(fid_list, parent_dir, target_dir, null, null, true);
+							deep_fetch_file_list_by_fid(fid_list, parent_dir, target_dir, null, null, true, null, target_type, _num);
 						},
 						cancleBack: function() {
 						}
@@ -287,6 +299,14 @@ if(ele_remote){
 		}else if('fetched_sub_file_list_continue' == args.tag){
 			var fid_list = args.fid_list, parent_dir = args.parent_dir, target_dir=args.target_dir;
 			var task = args.task;
+			var target_type = 'all';
+			var _num = 30;
+			if(args.hasOwnProperty('target_type')){
+				target_type = args.target_type;
+				if('dir' == target_type){
+					_num = 10;
+				}
+			}
 			send_log('fetched_sub_file_list_continue fid_list:', fid_list, ',parent_dir:', parent_dir);
 			var params={
 				msgid:task.msg_id,
@@ -298,9 +318,11 @@ if(ele_remote){
 				web_val:global_base_params.web[0], 
 				appid:global_base_params.app_id, 
 				ctype:global_base_params.clienttype, 
+				num:_num,
 				page:1
 			};
-			deep_fetch_file_list_by_fid(fid_list, parent_dir, target_dir, params, null, false, task.name);
+			
+			deep_fetch_file_list_by_fid(fid_list, parent_dir, target_dir, params, null, false, task.name, target_type);
 		}else if('check_self_dir' == args.tag){
 			var parent_item= args.parent_item, file=args.file, task= args.task;
 			var dir = args.dir;
@@ -448,6 +470,18 @@ if(ele_remote){
 						}
 					});
 				};
+				var dir_btn=document.createElement("BUTTON");
+				// btn.value='动态导入';
+				dir_btn.innerHTML = '扫描分享目录';
+				nav.appendChild(dir_btn);
+				dir_btn.onclick=function(e){
+					valid_check_boxs(document.querySelector('div.sharelist-container[node-type="sharelist-container"]'), (fid_list, isdir_map)=>{
+						send_log('选择的fid list:', fid_list);
+						if(fid_list){
+							ipcRenderer.send('asynchronous-spider-backend', {"tag":"fetched_bd_context", "fid_list":fid_list, "target_type":'dir'});
+						}
+					});
+				};
 				// ipcRenderer.send('asynchronous-spider-backend', {"tag":"intercept", "loc":document.location.href});
 			}
 		}, null, until);
@@ -463,14 +497,14 @@ if(ele_remote){
 		}
 		return parent_dirs;
 	}
-	function deep_fetch_file_list_by_fid(fid_list, parent_dir, target_dir, params, pos, first_layer, task_name){
+	function deep_fetch_file_list_by_fid(fid_list, parent_dir, target_dir, params, pos, first_layer, task_name, target_type, default_num){
 		if(!pos){
 			pos = 0;
 		}
 		var retry_cnt = 0;
 		var deep_call=(pos)=>{
 			if(pos>=fid_list.length){
-				ipcRenderer.send('asynchronous-spider-backend', {"tag":"fetched_file_list", "params":params, "fid_list":fid_list, "parent_dir":parent_dir, "target_dir":target_dir, "pos":pos, "result":[], "app_id":global_base_params.app_id});
+				ipcRenderer.send('asynchronous-spider-backend', {"tag":"fetched_file_list", "params":params, "fid_list":fid_list, "parent_dir":parent_dir, "target_dir":target_dir, "pos":pos, "result":[], "app_id":global_base_params.app_id, "target_type":target_type});
 				return;
 			}
 			if(!params){
@@ -483,9 +517,12 @@ if(ele_remote){
 					ch:global_base_params.channel, 
 					web_val:global_base_params.web[0], 
 					appid:global_base_params.app_id, 
-					ctype:global_base_params.clienttype, 
+					ctype:global_base_params.clienttype,
 					page:1
 				};
+				if(default_num){
+					params['num'] = default_num;
+				}
 			}
 			params.fid = fid_list[pos];
 			bd_proxy_api.fetch_file_list_by_fid(params, (err, rs)=>{
@@ -499,7 +536,7 @@ if(ele_remote){
 							if(retry_cnt >= 2){
 								retry_cnt = 0;
 								skip = true;
-								ipcRenderer.send('asynchronous-spider-backend', {"tag":"fetched_file_list", "params":params, "fid_list":fid_list, "parent_dir":parent_dir, "target_dir":target_dir, "pos":pos, "result":rs, "app_id":global_base_params.app_id, "task_name": task_name});
+								ipcRenderer.send('asynchronous-spider-backend', {"tag":"fetched_file_list", "params":params, "fid_list":fid_list, "parent_dir":parent_dir, "target_dir":target_dir, "pos":pos, "result":rs, "app_id":global_base_params.app_id, "task_name": task_name, "target_type":target_type});
 								// setTimeout(function() {deep_call(pos+1);}, 500+100*retry_cnt);
 							}
 						}
@@ -507,7 +544,7 @@ if(ele_remote){
 							if(retry_cnt < 15){
 								setTimeout(function() {deep_call(pos);}, 500+100*retry_cnt);
 							} else {
-								ipcRenderer.send('asynchronous-spider-backend', {"tag":"scan_file_list_failed", "params":params, "fid_list":fid_list, "parent_dir":parent_dir, "target_dir":target_dir, "pos":pos, "result":rs, "app_id":global_base_params.app_id, "task_name": task_name, "msg":'扫描文件异常!'});
+								ipcRenderer.send('asynchronous-spider-backend', {"tag":"scan_file_list_failed", "params":params, "fid_list":fid_list, "parent_dir":parent_dir, "target_dir":target_dir, "pos":pos, "result":rs, "app_id":global_base_params.app_id, "task_name": task_name, "msg":'扫描文件异常!', "target_type":target_type});
 							}
 							retry_cnt += 1;
 						}
@@ -539,7 +576,7 @@ if(ele_remote){
 									
 								}
 							}
-							ipcRenderer.send('asynchronous-spider-backend', {"tag":"fetched_file_list", "params":params, "fid_list":fid_list, "parent_dir":parent_dir, "target_dir":target_dir, "pos":pos, "result":rs, "app_id":global_base_params.app_id, "task_name": task_name});
+							ipcRenderer.send('asynchronous-spider-backend', {"tag":"fetched_file_list", "params":params, "fid_list":fid_list, "parent_dir":parent_dir, "target_dir":target_dir, "pos":pos, "result":rs, "app_id":global_base_params.app_id, "task_name": task_name, "target_type":target_type});
 						} else {
 							retry_cnt = 0;
 							setTimeout(function() {deep_call(pos+1);}, 500+100*retry_cnt);
@@ -806,11 +843,15 @@ if(ele_remote){
 			var fid = params.fid, msgid=params.msgid, fromuk=params.fromuk, _gid=params._gid,
 			ftype=params.ftype, bdtk=params.bdtk, ch=params.ch, web_val=params.web_val, 
 			appid=params.appid, ctype=params.ctype, page=params.page;
+			var _num = 30;
+			if(params.hasOwnProperty('num')){
+				_num = params.num;
+			}
 			var path = '/mbox/msg/shareinfo';
 			var params = {
 				msg_id:msgid,
 				page:page,
-				num:50,
+				num:_num,
 				from_uk:fromuk,
 				gid:_gid,
 				type:ftype,
@@ -849,8 +890,8 @@ if(ele_remote){
 			
 		}
 	}
-	window.baidu_api = baidu_api;
 	
+	window.bd_proxy_api = bd_proxy_api;
 	// function next_check_save_btn(){
 	// 	var __options={'root':{'tag':'div.sharelist-operate', 'attrs':{'node-type':'sharelist-operate'}},
 	// 	'parent':{'tag':'div.sharelist-operate-btns'},
@@ -1362,6 +1403,6 @@ if(ele_remote){
 			}
 		}
 	} ();
-	
+	window.baidu_api = baidu_api;
 }
 

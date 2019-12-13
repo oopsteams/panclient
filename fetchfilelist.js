@@ -32,7 +32,8 @@ var transfer_tasks_db = new Dao({'type':'list', 'name':'transfer_tasks',
 		{name:"pin", type:'INT'},
 		{name:"num", type:'INT'},
 		{name:"dirnum", type:'INT'},
-		{name:"app_id", type:'INT'}
+		{name:"app_id", type:'INT'},
+		{name:"target_type", type:'VARCHAR', len:32}
 	]
 });
 var transfer_dirs_db = new Dao({'type':'list', 'name':'transfer_dirs', 
@@ -638,7 +639,7 @@ var fetch_file_list_helper = Base.extend({
 			sender.send('asynchronous-spider',args);
 		});
 	},
-	check_out_task:function(params, parent_dir, target_dir, app_id, cb, has_records, task_name){
+	check_out_task:function(params, parent_dir, target_dir, app_id, cb, has_records, task_name, target_type){
 		var self = this;
 		var path = parent_dir.join('/');
 		var key = ''+app_id+'_'+path+'_'+task_name+'_'+target_dir;
@@ -675,7 +676,8 @@ var fetch_file_list_helper = Base.extend({
 						dirnum:0,
 						'name':task_name,
 						'stype':stype,
-						'app_id':app_id
+						'app_id':app_id,
+						'target_type':target_type
 					}
 					transfer_tasks_db.put(item, (_item)=>{
 						self.cache[key] = _item;
@@ -717,6 +719,10 @@ var fetch_file_list_helper = Base.extend({
 		var app_id = task.app_id;
 		var target_dir = task.target_path;
 		var parent_dir = task.path.split('/');
+		var target_type = task.target_type;
+		if(!target_type){
+			target_type = 'all';
+		}
 		var sender = this.context.win.webContents;
 		if(resume_breakpoint){
 			file_list_db.query_mult_params({'task_id': task_id, 'isdir':1, 'app_id': app_id, 'pin': 1}, (items)=>{
@@ -724,9 +730,9 @@ var fetch_file_list_helper = Base.extend({
 					var file_item = items[0];
 					self.context.log('to_continue_fetch dir path:', file_item.path);
 					task.hide_resume = true;
-					sender.send('asynchronous-spider', {'tag':'fetched_sub_file_list_continue', 'parent_dir': parent_dir, 'fid_list':[file_item.id], 'target_dir': target_dir, 'task':task});
+					sender.send('asynchronous-spider', {'tag':'fetched_sub_file_list_continue', 'parent_dir': parent_dir, 'fid_list':[file_item.id], 'target_dir': target_dir, 'task':task, 'target_type':target_type});
 				}else{
-					self._check_sub_file(app_id, task_id, parent_dir, target_dir, [], task);
+					self._check_sub_file(app_id, task_id, parent_dir, target_dir, [], task, target_type);
 				}
 			})
 		} else {//不显示续传button, 只能重新选择分享目录重新执行批量扫描
@@ -755,7 +761,7 @@ var fetch_file_list_helper = Base.extend({
 			}
 		});
 	},
-	_check_sub_file:function(app_id, task_id, parent_dir, target_dir, last_fid_list, _task, params){
+	_check_sub_file:function(app_id, task_id, parent_dir, target_dir, last_fid_list, _task, params, target_type){
 		var self = this;
 		var sender = this.context.win.webContents;
 		var fid_list = last_fid_list;
@@ -764,7 +770,7 @@ var fetch_file_list_helper = Base.extend({
 				var file_item = items[0];
 				self.context.log('dir path:', file_item.path);
 				file_list_db.update_by_id(file_item.id, {'pin': 1},()=>{
-					sender.send('asynchronous-spider', {'tag':'fetched_sub_file_list_continue', 'parent_dir': parent_dir, 'fid_list':[file_item.id], 'target_dir': target_dir, 'task':_task});
+					sender.send('asynchronous-spider', {'tag':'fetched_sub_file_list_continue', 'parent_dir': parent_dir, 'fid_list':[file_item.id], 'target_dir': target_dir, 'task':_task, 'target_type':target_type});
 				});
 			} else {
 				file_list_db.query_count({'app_id': app_id, 'task_id':task_id, 'isdir':0},(cnt_row)=>{
@@ -783,7 +789,7 @@ var fetch_file_list_helper = Base.extend({
 							_task.pin = 1;
 							self.context.update_statistic(_task);
 							sender.send('asynchronous-spider',{'tag':'fetch_file_list_complete', 'params':params,
-								'fid_list': fid_list, 'parent_dir': parent_dir, 'target_dir': target_dir
+								'fid_list': fid_list, 'parent_dir': parent_dir, 'target_dir': target_dir, 'target_type':target_type
 							});
 							self.check_ready((tasks)=>{
 								self.context._dialog(tasks);
@@ -799,6 +805,14 @@ var fetch_file_list_helper = Base.extend({
 		var sender = this.context.win.webContents;
 		var params = args.params, fid_list = args.fid_list, parent_dir = args.parent_dir, target_dir = args.target_dir, pos = args.pos, 
 		result=args.result, app_id = args.app_id;
+		var target_type = 'all';
+		var only_fetch_dir = false;
+		if(args.hasOwnProperty('target_type')){
+			target_type = args.target_type;
+			if('dir' == target_type){
+				only_fetch_dir = true;
+			}
+		}
 		var task_name = "";
 		if(args.hasOwnProperty('task_name')){
 			task_name = args.task_name;
@@ -842,21 +856,31 @@ var fetch_file_list_helper = Base.extend({
 						return false;
 					}, 
 					(r)=>{
-						return {
-							'id':r.fs_id,
-							'parent':parent_fid,
-							'category':r.category,
-							'isdir':r.isdir,
-							'filename':r.server_filename,
-							'path':r.path,
-							'server_ctime':r.server_ctime,
-							'server_mtime':r.server_mtime,
-							'tm':Date.now(),
-							'size':r.size,
-							'pin':0,
-							'app_id':app_id,
-							'task_id':item.id
-						};
+						if(only_fetch_dir && r.isdir == 0){
+							_task.num = _task.num - 1;
+							if(!result.hasOwnProperty('origin_has_more')){
+								result.origin_has_more = result.has_more;
+							}
+							result.has_more = 0;
+							return null;
+						} else {
+							
+							return {
+								'id':r.fs_id,
+								'parent':parent_fid,
+								'category':r.category,
+								'isdir':r.isdir,
+								'filename':r.server_filename,
+								'path':r.path,
+								'server_ctime':r.server_ctime,
+								'server_mtime':r.server_mtime,
+								'tm':Date.now(),
+								'size':r.size,
+								'pin':0,
+								'app_id':app_id,
+								'task_id':item.id
+							};
+						}
 					}, (_list)=>{
 						self.context.update_statistic(_task);
 						next_oper();
@@ -868,14 +892,14 @@ var fetch_file_list_helper = Base.extend({
 					if(result.has_more == 1){
 						params.page += 1;
 						sender.send('asynchronous-spider',{'tag':'fetch_file_list_continue', 'params':params,
-							'fid_list': fid_list, 'parent_dir': parent_dir, 'pos': pos, 'task':_task
+							'fid_list': fid_list, 'parent_dir': parent_dir, 'pos': pos, 'task':_task, 'target_type':target_type
 						})
 					} else {
 						pos = pos + 1;
 						params.page = 1;
 						if(pos < fid_list.length){
 							sender.send('asynchronous-spider',{'tag':'fetch_file_list_continue', 'params':params,
-								'fid_list': fid_list, 'parent_dir': parent_dir, 'pos': pos, 'task':_task
+								'fid_list': fid_list, 'parent_dir': parent_dir, 'pos': pos, 'task':_task, 'target_type':target_type
 							})
 						} else {
 							var re_call_update_file_pin=(pos)=>{
@@ -888,56 +912,18 @@ var fetch_file_list_helper = Base.extend({
 								} else {
 									setTimeout(()=>{
 										// check_sub_file(item.id);
-										self._check_sub_file(app_id, _task.id, parent_dir, target_dir, fid_list, _task, params);
+										self._check_sub_file(app_id, _task.id, parent_dir, target_dir, fid_list, _task, params, target_type);
 									}, 200);
 									return;
 								}
 							};
 							re_call_update_file_pin(0);
-							// var check_sub_file = (task_id)=>{
-							// 	file_list_db.query_mult_params({'task_id': task_id, 'isdir':1, 'app_id': app_id, 'pin': 0}, (items)=>{
-							// 		if(items && items.length>0){
-							// 			var file_item = items[0];
-							// 			console.log('dir path:', file_item.path);
-							// 			file_list_db.update_by_id(file_item.id, {'pin': 1},()=>{
-							// 				sender.send('asynchronous-spider', {'tag':'fetched_sub_file_list_continue', 'parent_dir': parent_dir, 'fid_list':[file_item.id], 'target_dir': target_dir});
-							// 			});
-							// 		} else {
-							// 			var task_id = _task.id;
-							// 			file_list_db.query_count({'app_id': _task.app_id, 'task_id':task_id, 'isdir':0},(cnt_row)=>{
-							// 				var total_cnt = 0;
-							// 				if(cnt_row){
-							// 					total_cnt = cnt_row.cnt;	
-							// 				}
-							// 				file_list_db.query_count({'app_id': self.options.app_id, 'task_id':task_id, 'isdir':1},(dir_cnt_row)=>{
-							// 					var dir_cnt = 0;
-							// 					if(dir_cnt_row){
-							// 						dir_cnt = dir_cnt_row.cnt;
-							// 					}
-							// 					_task.num = total_cnt;
-							// 					_task.dirnum = dir_cnt;
-							// 					transfer_tasks_db.update_by_id(_task.id, {'pin': 1, 'num':_task.num, 'dirnum':_task.dirnum}, ()=>{
-							// 						_task.pin = 1;
-							// 						self.context.update_statistic(_task);
-													
-							// 						sender.send('asynchronous-spider',{'tag':'fetch_file_list_complete', 'params':params,
-							// 							'fid_list': fid_list, 'parent_dir': parent_dir, 'target_dir': target_dir, 'pos': pos
-							// 						});
-							// 						self.check_ready((tasks)=>{
-							// 							self.context._dialog(tasks);
-							// 						});
-							// 					});
-							// 				});
-							// 			});
-							// 		}
-							// 	}, 1);
-							// };
 							
 						}
 					}
 				}
 			}
-		}, has_records, task_name);
+		}, has_records, task_name, target_type);
 	}
 });
 
