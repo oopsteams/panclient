@@ -269,7 +269,7 @@ if(ele_remote){
 			var fid_list = args.fid_list;
 			var global_params = args.global_params;
 			var target_type = 'all';
-			var _num = 30;
+			var _num = 50;
 			if(args.hasOwnProperty('target_type')){
 				target_type = args.target_type;
 				if('dir' == target_type){
@@ -300,7 +300,7 @@ if(ele_remote){
 			var fid_list = args.fid_list, parent_dir = args.parent_dir, target_dir=args.target_dir;
 			var task = args.task;
 			var target_type = 'all';
-			var _num = 30;
+			var _num = 50;
 			if(args.hasOwnProperty('target_type')){
 				target_type = args.target_type;
 				if('dir' == target_type){
@@ -843,7 +843,7 @@ if(ele_remote){
 			var fid = params.fid, msgid=params.msgid, fromuk=params.fromuk, _gid=params._gid,
 			ftype=params.ftype, bdtk=params.bdtk, ch=params.ch, web_val=params.web_val, 
 			appid=params.appid, ctype=params.ctype, page=params.page;
-			var _num = 30;
+			var _num = 50;
 			if(params.hasOwnProperty('num')){
 				_num = params.num;
 			}
