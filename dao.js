@@ -367,6 +367,24 @@ var Dao = Base.extend(
 			});
 			
 		},
+		update_by_raw_sql:function(sql, cb){
+			var ithis = this;
+			if(sql){
+				ithis.db.run(sql, (err, result)=>{
+					if(err != null){
+						console.log("err, update_by_raw_sql:",sql);
+						throw err;
+					}
+					if(cb){
+						cb(result);
+					}
+				});
+			} else {
+				if(cb){
+					cb([]);
+				}
+			}
+		},
 		query_by_raw_sql:function(sql, cb){
 			var ithis = this;
 			if(sql){

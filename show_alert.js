@@ -37,6 +37,7 @@ var createAlertWindow =(message, parent_win, callback, params) => {
 	  if(callback){
 		  callback('closed', alert_window);
 	  }
+	  alert_window = null;
 	});
 	alert_window.loadURL(`file://${__dirname}/empty.html`);
 	return alert_window;

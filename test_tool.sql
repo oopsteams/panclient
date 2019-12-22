@@ -51,3 +51,14 @@ var params = {
 				logid:baidu_api.build_log_id(),
 				ctype:0
 			};
+			
+var _gid='56162499896297783', stype=2,bdtk='82c3dc0e7fae33c5a0da28b3a3a6347a', ch='chunlei',web_val=1, appid=250528, ctype=0, pg=1, limit=3;
+bd_proxy_api.get_share_list(_gid, stype, bdtk, ch, web_val, appid, ctype, pg, limit, (err, rs)=>{console.log(err, rs);});
+
+
+var _last_msg_time = 1576069097,_gid='334007490507240132', gtype=1, bdtk='82c3dc0e7fae33c5a0da28b3a3a6347a', ch='chunlei',web_val=1, appid=250528, ctype=0;
+bd_proxy_api.get_msg_list(_last_msg_time, _gid, gtype, bdtk, ch, web_val, appid, ctype, (err, rs)=>{console.log(err, rs);});
+
+bd_proxy_api.fetch_group_list(bdtk, ch, web_val, appid, ctype, (err, rs)=>{console.log(err, rs);});
+var _type=1, start=0, limit=20, bdtk='82c3dc0e7fae33c5a0da28b3a3a6347a', ch='chunlei',web_val=1, appid=250528, ctype=0;
+bd_proxy_api.group_user_list(_type, bdtk, ch, web_val, appid, ctype, start, limit, (err, rs)=>{console.log(err, rs);});

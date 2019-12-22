@@ -308,7 +308,12 @@ function correct_download_task(){
 		gSender.send("asynchronous-reply",{"tag":"error", "error":"sync download task ok!"})
 	});
 }
-var wh = new window_helper(account, mainWindow, {width:1200,height:650,'url':'https://pan.baidu.com/', 'logger':logger});
+var hide_open_bd_pan_menu = (show)=>{
+	if(!show){
+		
+	}
+};
+var wh = new window_helper(account, mainWindow, {width:1200,height:650,'url':'https://pan.baidu.com/', 'logger':logger, 'menu': hide_open_bd_pan_menu)});
 function open_bd_pan(){
 	wh.open();
 }

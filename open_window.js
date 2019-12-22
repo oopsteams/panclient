@@ -109,7 +109,7 @@ function interceptHttp(){
 		  if(idx>0){
 				uri_obj = urlib.parse(details.url, true);
 				if(uri_obj){
-					// console.log("share params:", uri_obj.query);
+					// self.log("share params:", uri_obj.query);
 					fetched_global_base_params['share_params'] = uri_obj.query;
 					self.win.webContents.send('asynchronous-spider',{'tag':'fetch_shared_params', 'params':uri_obj.query})
 				}
@@ -139,6 +139,7 @@ var window_helper = Base.extend({
 		this.popwin = null;
 		this.alertwin = null;
 		this.popwin_params = {};
+		this.wait_disk_home_call_manual_fun = null;
 		this.wait_mbox_homepage_call_manual_fun = null;
 		this.last_web_uid = {};
 		this.logger = options&&options.logger?options.logger:console.log;
@@ -246,6 +247,8 @@ var window_helper = Base.extend({
 					self.fetch_helper.del(args.task);
 				} else if('retry_scan' == args.tag){
 					self.fetch_helper.retry_scan(args.task);
+				} else if('sync_es' == args.tag){
+					self.fetch_helper.sync_to_es(args.task.id);
 				}
 			});
 		}else{
@@ -334,7 +337,10 @@ var window_helper = Base.extend({
 					self.log('wait_mbox_homepage_call_manual_fun:', loc);
 					var man_func = find_func(loc, manual_url_mapping);
 					man_func.apply(self, self.wait_mbox_homepage_call_manual_fun);
-					self.wait_mbox_homepage_call_manual_fun = null;
+				}
+				if(self.wait_disk_home_call_manual_fun&&loc.indexOf('disk/home')>=0){
+					var man_func = find_func(loc, manual_url_mapping);
+					man_func.apply(self, self.wait_disk_home_call_manual_fun);
 				}
 				if(func){
 					func.apply(self)
@@ -352,7 +358,7 @@ var window_helper = Base.extend({
 			} else if('fetched_file_list' == args.tag){
 				fetched_file_list_action.apply(self, [args]);
 			} else if('fetched_bd_context' == args.tag){
-				self.win.webContents.executeJavaScript('window.__bd_ctx=require("common:widget/context/context.js");').then((result)=>{
+				self.win.webContents.executeJavaScript('if(!window.hasOwnProperty("__bd_ctx"))window.__bd_ctx=require("common:widget/context/context.js");').then((result)=>{
 					args.tag='fetched_bd_context_ready';
 					args['global_params'] = fetched_global_base_params;
 					self.win.webContents.send('asynchronous-spider', args);
@@ -382,6 +388,7 @@ var window_helper = Base.extend({
 								},1);
 							}else if('ready' == state){
 								self.wait_mbox_homepage_call_manual_fun = [gparams, _t];
+								self.wait_disk_home_call_manual_fun = [gparams, _t];
 								func.apply(self, [gparams, _t]);
 							}
 						},{'modal':false, 'width':360, 'height':200})
@@ -395,6 +402,7 @@ var window_helper = Base.extend({
 			} else if('find_share_btn_ok' == args.tag){
 				var loc = args.loc;
 				// var func = find_func(loc, manual_url_mapping);
+				self.wait_disk_home_call_manual_fun = null;
 				var task = args.task;
 				var gparams = args.gparams;
 				self.log('ready to check next elem:', loc);
@@ -417,6 +425,7 @@ var window_helper = Base.extend({
 				//TODO 
 				self.fetch_helper.on_transfer_continue(args, true);
 			} else if('init_page_ok' == args.tag){
+				self.wait_mbox_homepage_call_manual_fun = null;
 				if(self.alertwin){
 					self.alertwin.setClosable(true);
 					self.alertwin.close();
@@ -447,16 +456,19 @@ var window_helper = Base.extend({
 			} else if('test_recursive' == args.tag){
 				var task_id=args.task_id, folder_id=args.folder_id;
 				self.fetch_helper.test_recursive(task_id, folder_id);
+			} else if('sync_to_es' == args.tag){
+				self.fetch_helper.sync_to_es();
 			}
 		});
 		// if(this.first_show){
 		// 	self.win.show();
 		// }
 		// this.win.webContents.openDevTools();
-		if(!self.intercepted){
-			interceptHttp.apply(this);
-			self.intercepted = true;
-		}
+		// if(!self.intercepted){
+		// 	interceptHttp.apply(this);
+		// 	self.intercepted = true;
+		// }
+		interceptHttp.apply(this);
 		this.win.loadURL(this.options['url']);
 	}
 });

@@ -19,7 +19,7 @@ if(ele_remote){
 	var _id_reg = new RegExp("_id_", "g");
 	var _title_reg = new RegExp("_title_tips_", "g");
 	var _title_show_reg = new RegExp("_title_show_", "g");
-	var item_format = '<div id="_id__h"><table width="100%" class="gridtable"><tr id="_id__tr"><td style="width:280px;"><div style="width:280px;text-overflow:ellipsis;overflow:hidden;white-space:nowrap;" title="_title_tips_">_title_show_</div></td><td><div id="_id__progressbar" title="_title_tips_"></div></td><td width="60px" id="_id__speed"></td><td width="40px"><button id="_id__btn">&nbsp;</button><button id="_id__resume_breakpoint_btn">&nbsp;</button></td><td width="40px"><button id="_id__act_btn">&nbsp;</button></td><td width="10px"><button id="_id__one_by_one_btn">OneByOne</button></td></tr></table></div><div id="_id__sub_container" class="desc">&nbsp;</div>';
+	var item_format = '<div id="_id__h"><table width="100%" class="gridtable"><tr id="_id__tr"><td style="width:280px;"><div style="width:280px;text-overflow:ellipsis;overflow:hidden;white-space:nowrap;" title="_title_tips_">_title_show_</div></td><td><div id="_id__progressbar" title="_title_tips_"></div></td><td width="60px" id="_id__speed"></td><td width="40px"><button id="_id__btn">&nbsp;</button><button id="_id__resume_breakpoint_btn">&nbsp;</button></td><td width="40px"><button id="_id__act_btn">&nbsp;</button></td><td width="10px"><button id="_id__one_by_one_btn">OneByOne</button></td><td width="10px"><button id="_id__sync_to_es">SYNC2ES</button></td></tr></table></div><div id="_id__sub_container" class="desc">&nbsp;</div>';
 	
 	var ipcRenderer = require('electron').ipcRenderer;
 	ipcRenderer.on('asynchronous-popwin', function(event, args){
@@ -58,6 +58,7 @@ if(ele_remote){
 					$("#"+item_id+'_tr')[0].progressbar.progressbar("value", r);
 				}
 			}
+			var sync_to_es_btn = $('#'+item_id+'_sync_to_es');
 			var one_by_one_btn = $('#'+item_id+'_one_by_one_btn');
 			var btn = $('#'+item_id+'_btn');
 			if(isover){
@@ -66,6 +67,7 @@ if(ele_remote){
 			}
 			btn.hide();
 			one_by_one_btn.hide();
+			sync_to_es_btn.hide();
 			if(err){
 				//alert(err);
 				delete args['err'];
@@ -92,8 +94,10 @@ if(ele_remote){
 			if(pin==1){
 				var act_btn = $('#'+item_id+'_act_btn');
 				act_btn[0].context = task;
+				var sync_to_es_btn = $('#'+item_id+'_sync_to_es');
 				var btn = $('#'+item_id+'_btn');
 				btn[0].context = task;
+				sync_to_es_btn[0].context = task;
 				act_btn.on("click", function(event){
 					var context=event.currentTarget.context;
 					var pin = context.pin;
@@ -103,6 +107,7 @@ if(ele_remote){
 				});
 				act_btn.show();
 				btn.show();
+				sync_to_es_btn.show();
 				var _progressbar = $("#"+item_id+"_progressbar");
 				tr[0].progressbar = _progressbar;
 				var _prog = _progressbar.progressbar({
@@ -160,6 +165,11 @@ if(ele_remote){
 			one_by_one_btn.attr("title","逐个文件方式继续下载");
 			one_by_one_btn.button({icon: "ui-icon-arrowthickstop-1-s", showLabel: true});
 			one_by_one_btn.hide();
+			var sync_to_es_btn = $('#'+item_id+'_sync_to_es');
+			sync_to_es_btn[0].context = _t;
+			sync_to_es_btn.attr("title","目录同步到ES");
+			sync_to_es_btn.button({icon: "ui-icon-transfer-e-w", showLabel: true});
+			sync_to_es_btn.hide();
 			var resume_breakpoint_btn = $('#'+item_id+'_resume_breakpoint_btn');
 			resume_breakpoint_btn[0].context = _t;
 			resume_breakpoint_btn.attr("title","从断点处继续扫描");
@@ -193,6 +203,12 @@ if(ele_remote){
 				console.log('act_btn pin:', pin);
 				ipcRenderer.send('asynchronous-popwin-backend', {"tag":"delete_task", "task":context});
 			});
+			sync_to_es_btn.on("click", function(event){
+				var context=event.currentTarget.context;
+				var pin = context.pin;
+				ipcRenderer.send('asynchronous-popwin-backend', {"tag":"sync_es", "task":context});
+				$(event.currentTarget).hide();
+			});
 			// one_by_one_btn.on("click", function(event){
 			// 	var context=event.currentTarget.context;
 			// 	var pin = context.pin;
@@ -214,6 +230,7 @@ if(ele_remote){
 				btn.hide();
 				act_btn.hide();
 				one_by_one_btn.hide();
+				sync_to_es_btn.hide();
 				var h_desc = '转存任务已删除!';
 				if(_t.pin == 9){
 				} else if(_t.pin == 0){
@@ -247,11 +264,14 @@ if(ele_remote){
 			return;
 		}
 		act_btn[0].context = task;
+		var sync_to_es_btn = $('#'+item_id+'_sync_to_es');
 		var btn = $('#'+item_id+'_btn');
 		btn[0].context = task;
+		sync_to_es_btn[0].context = task;
 		
 		act_btn.show();
 		btn.show();
+		sync_to_es_btn.show();
 		var val = 0;
 		if(task.hasOwnProperty('over_count') && task.hasOwnProperty('total_count')){
 			var over_count = task.over_count;

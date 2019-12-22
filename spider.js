@@ -237,19 +237,52 @@ if(ele_remote){
 			ch, web_val, appid, ctype
 			var bdtk=global_base_params.bdstoken, ch=global_base_params.channel, 
 			web_val = global_base_params.web[0], appid=global_base_params.app_id, ctype=global_base_params.clienttype;
+			var _type=1, limit=20, group_list={'records':[]};
+			var recursive_fetch_groups = (start, _cb)=>{
+				bd_proxy_api.group_user_list(_type, bdtk, ch, web_val, appid, ctype, start, limit, (err, rs)=>{
+					console.log(err, rs);
+					if(rs){
+						if(rs.hasOwnProperty('records')){
+							var records = rs.records;
+							records.forEach((r, idx)=>{group_list.records.push(r)})
+							if(records.length == limit){
+								setTimeout(()=>{
+									recursive_fetch_groups(start+1, _cb);
+								});
+							} else {
+								_cb();
+							}
+						} else {
+							_cb();
+						}
+					} else {
+						_cb();
+					}
+				});
+			};
 			bd_proxy_api.quota(bdtk, ch, web_val, appid, ctype, (err, res)=>{
 				if(res){
 					global_base_params['quota'] = res;
-					setTimeout(()=>{bd_proxy_api.fetch_group_list(bdtk, ch, web_val, appid, ctype, (err, res)=>{
-						if(res){
-							global_base_params['group_list'] = res;
-						}
-						ipcRenderer.send('asynchronous-spider-backend', {"tag":"fetched_base_params", "params":global_base_params});
-						if(tasks && tasks.length>0){
-							ipcRenderer.send('asynchronous-spider-backend', {"tag":"dialog", "params":{'tasks':tasks, 'gparams':global_base_params}, "loc":document.location.href});
-						}
-					});}, 100);
+					// setTimeout(()=>{bd_proxy_api.fetch_group_list(bdtk, ch, web_val, appid, ctype, (err, res)=>{
+					// 	if(res){
+					// 		global_base_params['group_list'] = res;
+					// 	}
+					// 	ipcRenderer.send('asynchronous-spider-backend', {"tag":"fetched_base_params", "params":global_base_params});
+					// 	if(tasks && tasks.length>0){
+					// 		ipcRenderer.send('asynchronous-spider-backend', {"tag":"dialog", "params":{'tasks':tasks, 'gparams':global_base_params}, "loc":document.location.href});
+					// 	}
+					// });}, 100);
 					// dialog modal
+					
+					setTimeout(()=>{
+						recursive_fetch_groups(0, ()=>{
+							global_base_params['group_list'] = group_list;
+							ipcRenderer.send('asynchronous-spider-backend', {"tag":"fetched_base_params", "params":global_base_params});
+							if(tasks && tasks.length>0){
+								ipcRenderer.send('asynchronous-spider-backend', {"tag":"dialog", "params":{'tasks':tasks, 'gparams':global_base_params}, "loc":document.location.href});
+							}
+						});
+					},100);
 					
 				}
 			});
@@ -257,12 +290,14 @@ if(ele_remote){
 		}else if('fetch_file_list_continue'==args.tag){
 			// console.log('deep_fetch_file_list_by_fid continue.');
 			var params = args.params, fid_list = args.fid_list, parent_dir = args.parent_dir, target_dir=args.target_dir, pos = args.pos;
+			var root_item = args.root_item;
 			var task = args.task;
 			var target_type = 'all';
 			if(args.hasOwnProperty('target_type')){
 				target_type = args.target_type;
 			}
-			deep_fetch_file_list_by_fid(fid_list, parent_dir, target_dir, params, pos, false, task.name, target_type);
+			var _num = 50;
+			deep_fetch_file_list_by_fid(fid_list, parent_dir, target_dir, params, pos, false, task.name, target_type, _num, null, root_item);
 		}else if('fetch_file_list_complete'==args.tag){
 			// alert('文件分析完成!');
 		}else if('fetched_bd_context_ready' == args.tag){
@@ -276,29 +311,161 @@ if(ele_remote){
 					_num = 10;
 				}
 			}
+			var file_items = args.file_items;
 			if(!global_base_params.shared_params && global_params.share_params){
 				global_base_params.shared_params = global_params.share_params;
 			}
-			// console.log('window.__bd_ctx:', window.__bd_ctx);
-			if(window.__bd_ctx){
-				var _mMoveSaveDialog = __bd_ctx.getService(__bd_ctx.SERVICE_FIEL_TREE_MANAGER);
-				_mMoveSaveDialog.reBuild({
-						type: "transfer",
-						title: "保存到",
-						confirmBack: function(t) {
-							var target_dir = t;
-							send_log('target_dir:', target_dir);
-							var parent_dir = fetch_parent_dir();
-							deep_fetch_file_list_by_fid(fid_list, parent_dir, target_dir, null, null, true, null, target_type, _num);
-						},
-						cancleBack: function() {
+			//check root file
+			var load_root_files = (cb)=>{
+				var options = {
+					'root':{'tag':'div.session-content-wrap', 'attrs':{'node-type':'session-content-wrap'}},
+					'parent':{'tag':'li.session-list-item.selected', 'attrs':{'node-type':'session-list-item'}},
+					'tag':'p.user-name',
+					'attrs':{'node-type':'user-name'},
+				};
+				
+				fetch_element_until_fetched(options,(elems)=>{
+					if(elems && elems.length>0){
+						var el = elems[0];
+						// console.log('el:',el);
+						cb(el);
+					}
+				}, 0, true);
+			};
+			var copy_shared_list = (msg_list, results)=>{
+				msg_list.forEach((msg, idx)=>{
+					var from_uk = msg.uk;
+					var file_list = msg.file_list;
+					var msg_id = msg.msg_id;
+					file_list.forEach((rf, idx)=>{
+						results.datas.push({gid:msg.group_id, 
+						frm:msg.uk, fid:rf.fs_id, 
+						path:rf.path, 
+						name:rf.server_filename,
+						isdir:rf.isdir,
+						id:msg_id
+						});
+					});
+				});
+			};
+			var shared_list_has_more = (_gid, stype, bdtk, ch, web_val, appid, ctype, results, offset, limit, cb)=>{
+				if(global_base_params.hasOwnProperty('msg_list')){
+					copy_shared_list(global_base_params.msg_list, results);
+					cb(results);
+				} else {
+					bd_proxy_api.get_share_list(_gid, stype, bdtk, ch, web_val, appid, ctype, offset, limit, (err, rs)=>{
+						if(rs){
+							if(rs.hasOwnProperty('records')){
+								var recs = rs.records;
+								if(recs.hasOwnProperty('msg_list')){
+									var msg_list = recs.msg_list;
+									global_base_params.msg_list = msg_list;
+									copy_shared_list(msg_list, results);
+								}
+							}
+							cb(results);
+						} else {
+							cb(results);
+						}
+					});
+				}
+			};
+			var re_match_root = (parent_dir)=>{
+				if(parent_dir && parent_dir.length>0){
+					var root_name = parent_dir[0];
+					var datas = file_items.datas;
+					for(var i=0;i<datas.length;i++){
+						var item = datas[i];
+						if(root_name == item.name){
+							fid_list.forEach((fid,idx)=>{
+								if(file_items.hasOwnProperty(fid)){
+									file_items[fid]['frm'] = item.frm;
+									file_items[fid]['gid'] = item.gid;
+									file_items[fid]['id'] = item.id;
+								}
+							});
+							break;
 						}
 					}
-				);
+					delete file_items['datas'];
+				}
+				console.log('file_items:', file_items);
+			};
+			var next_step = (file_items)=>{
+				if(window.__bd_ctx){
+					var _mMoveSaveDialog = __bd_ctx.getService(__bd_ctx.SERVICE_FIEL_TREE_MANAGER);
+					_mMoveSaveDialog.reBuild({
+							type: "transfer",
+							title: "保存到",
+							confirmBack: function(t) {
+								var target_dir = t;
+								send_log('target_dir:', target_dir);
+								var parent_dir = fetch_parent_dir();
+								send_log('parent_dir:', parent_dir);
+								re_match_root(parent_dir);
+								var first_fid = fid_list[0];
+								var _root_item = file_items.hasOwnProperty(first_fid)?file_items[first_fid]:{}
+								deep_fetch_file_list_by_fid(fid_list, parent_dir, target_dir, null, null, true, null, target_type, _num, file_items, _root_item);
+							},
+							cancleBack: function() {
+							}
+						}
+					);
+				}
+			};
+			var _fid = fid_list[0];
+			var _item = file_items.hasOwnProperty(_fid)?file_items[_fid]:null;
+			if(_item){
+				if(!_item.hasOwnProperty('gid')){
+					var bdtk = global_base_params.bdstoken,
+					ch = global_base_params.channel, 
+					web_val = global_base_params.web[0], 
+					appid = global_base_params.app_id, 
+					ctype = global_base_params.clienttype, stype = 2;
+					load_root_files((el)=>{
+						var title = el.getAttribute('title');
+						console.log('title:', title);
+						var recs = global_base_params.group_list.records;
+						if(recs && recs.length>0){
+							for(var i=0;i<recs.length;i++){
+								var r = recs[i];
+								if(r.name == title){
+									console.log('find record:',r)
+									var _gid = r.gid;
+									var results = {datas:[]};
+									shared_list_has_more(_gid, stype, bdtk, ch, web_val, appid, ctype, results, 1, 60, (rs)=>{
+										if(rs){
+											console.log('rs:', rs);
+											// rs.datas.forEach((dt, idx)=>{
+											// 	file_items[dt.fid] = dt;
+											// });
+											file_items['datas'] = rs.datas;
+											next_step(file_items);
+										}
+									});
+									// bd_proxy_api.get_share_list(_gid, stype, bdtk, ch, web_val, appid, ctype, (err, rs)=>{
+									// 	console.log(err, rs);
+									// });
+									break;
+								}
+							}
+						} else {
+							next_step(file_items);
+						}
+					});
+				} else {
+					next_step(file_items);
+				}
+			} else {
+				alert('初始化数据加载异常!');
 			}
+			
+			// console.log('window.__bd_ctx:', window.__bd_ctx);
+			
 		}else if('fetched_sub_file_list_continue' == args.tag){
 			var fid_list = args.fid_list, parent_dir = args.parent_dir, target_dir=args.target_dir;
 			var task = args.task;
+			var root_item = args.root_item;
 			var target_type = 'all';
 			var _num = 50;
 			if(args.hasOwnProperty('target_type')){
@@ -309,9 +476,9 @@ if(ele_remote){
 			}
 			send_log('fetched_sub_file_list_continue fid_list:', fid_list, ',parent_dir:', parent_dir);
 			var params={
-				msgid:task.msg_id,
-				fromuk:task.from_uk, 
-				_gid:task.gid,
+				msgid:root_item.hasOwnProperty('id')?root_item.id:task.msg_id,
+				fromuk:root_item.hasOwnProperty('frm')?root_item.frm:task.from_uk, 
+				_gid:root_item.hasOwnProperty('gid')?root_item.gid:task.gid,
 				ftype:task.stype, 
 				bdtk:global_base_params.bdstoken, 
 				ch:global_base_params.channel, 
@@ -322,7 +489,7 @@ if(ele_remote){
 				page:1
 			};
 			
-			deep_fetch_file_list_by_fid(fid_list, parent_dir, target_dir, params, null, false, task.name, target_type);
+			deep_fetch_file_list_by_fid(fid_list, parent_dir, target_dir, params, null, false, task.name, target_type, _num, null, root_item);
 		}else if('check_self_dir' == args.tag){
 			var parent_item= args.parent_item, file=args.file, task= args.task;
 			var dir = args.dir;
@@ -463,10 +630,10 @@ if(ele_remote){
 				btn.innerHTML = '不限量转存';
 				nav.appendChild(btn);
 				btn.onclick=function(e){
-					valid_check_boxs(document.querySelector('div.sharelist-container[node-type="sharelist-container"]'), (fid_list, isdir_map)=>{
+					valid_check_boxs(document.querySelector('div.sharelist-container[node-type="sharelist-container"]'), (fid_list, isdir_map, file_items)=>{
 						send_log('选择的fid list:', fid_list);
 						if(fid_list){
-							ipcRenderer.send('asynchronous-spider-backend', {"tag":"fetched_bd_context", "fid_list":fid_list});
+							ipcRenderer.send('asynchronous-spider-backend', {"tag":"fetched_bd_context", "fid_list":fid_list, "file_items": file_items});
 						}
 					});
 				};
@@ -475,10 +642,10 @@ if(ele_remote){
 				dir_btn.innerHTML = '扫描分享目录';
 				nav.appendChild(dir_btn);
 				dir_btn.onclick=function(e){
-					valid_check_boxs(document.querySelector('div.sharelist-container[node-type="sharelist-container"]'), (fid_list, isdir_map)=>{
+					valid_check_boxs(document.querySelector('div.sharelist-container[node-type="sharelist-container"]'), (fid_list, isdir_map, file_items)=>{
 						send_log('选择的fid list:', fid_list);
 						if(fid_list){
-							ipcRenderer.send('asynchronous-spider-backend', {"tag":"fetched_bd_context", "fid_list":fid_list, "target_type":'dir'});
+							ipcRenderer.send('asynchronous-spider-backend', {"tag":"fetched_bd_context", "fid_list":fid_list, "file_items": file_items, "target_type":'dir'});
 						}
 					});
 				};
@@ -497,22 +664,36 @@ if(ele_remote){
 		}
 		return parent_dirs;
 	}
-	function deep_fetch_file_list_by_fid(fid_list, parent_dir, target_dir, params, pos, first_layer, task_name, target_type, default_num){
+	function deep_fetch_file_list_by_fid(fid_list, parent_dir, target_dir, params, pos, first_layer, task_name, target_type, default_num, file_items, root_item){
 		if(!pos){
 			pos = 0;
 		}
 		var retry_cnt = 0;
 		var deep_call=(pos)=>{
 			if(pos>=fid_list.length){
-				ipcRenderer.send('asynchronous-spider-backend', {"tag":"fetched_file_list", "params":params, "fid_list":fid_list, "parent_dir":parent_dir, "target_dir":target_dir, "pos":pos, "result":[], "app_id":global_base_params.app_id, "target_type":target_type});
+				ipcRenderer.send('asynchronous-spider-backend', {"tag":"fetched_file_list", "params":params, "fid_list":fid_list, "parent_dir":parent_dir, "target_dir":target_dir, "pos":pos, "result":[], "app_id":global_base_params.app_id, "target_type":target_type, 'file_items':file_items, 'root_item':root_item});
 				return;
 			}
+			var fid = fid_list[pos];
+			
 			if(!params){
+				var __msgid = '', __fromuk = '', __gid = '', __ftype = 2;
+				if(global_base_params.hasOwnProperty('shared_params')){
+					__msgid = global_base_params.shared_params.msg_id;
+					__fromuk = global_base_params.shared_params.from_uk;
+					__gid = global_base_params.shared_params.gid;
+					__ftype = global_base_params.shared_params.type;
+				}
+				if(root_item){
+					__msgid = root_item.id;
+					__fromuk = root_item.frm;
+					__gid = root_item.gid;
+				}
 				params={
-					msgid:global_base_params.shared_params.msg_id,
-					fromuk:global_base_params.shared_params.from_uk, 
-					_gid:global_base_params.shared_params.gid,
-					ftype:global_base_params.shared_params.type, 
+					msgid:__msgid,
+					fromuk:__fromuk, 
+					_gid:__gid,
+					ftype:__ftype, 
 					bdtk:global_base_params.bdstoken, 
 					ch:global_base_params.channel, 
 					web_val:global_base_params.web[0], 
@@ -524,7 +705,7 @@ if(ele_remote){
 					params['num'] = default_num;
 				}
 			}
-			params.fid = fid_list[pos];
+			params.fid = fid;
 			bd_proxy_api.fetch_file_list_by_fid(params, (err, rs)=>{
 				// console.log('rs:', rs);
 				if(rs){
@@ -536,7 +717,7 @@ if(ele_remote){
 							if(retry_cnt >= 2){
 								retry_cnt = 0;
 								skip = true;
-								ipcRenderer.send('asynchronous-spider-backend', {"tag":"fetched_file_list", "params":params, "fid_list":fid_list, "parent_dir":parent_dir, "target_dir":target_dir, "pos":pos, "result":rs, "app_id":global_base_params.app_id, "task_name": task_name, "target_type":target_type});
+								ipcRenderer.send('asynchronous-spider-backend', {"tag":"fetched_file_list", "params":params, "fid_list":fid_list, "parent_dir":parent_dir, "target_dir":target_dir, "pos":pos, "result":rs, "app_id":global_base_params.app_id, "task_name": task_name, "target_type":target_type, 'file_items': file_items, 'root_item':root_item});
 								// setTimeout(function() {deep_call(pos+1);}, 500+100*retry_cnt);
 							}
 						}
@@ -544,7 +725,7 @@ if(ele_remote){
 							if(retry_cnt < 15){
 								setTimeout(function() {deep_call(pos);}, 500+100*retry_cnt);
 							} else {
-								ipcRenderer.send('asynchronous-spider-backend', {"tag":"scan_file_list_failed", "params":params, "fid_list":fid_list, "parent_dir":parent_dir, "target_dir":target_dir, "pos":pos, "result":rs, "app_id":global_base_params.app_id, "task_name": task_name, "msg":'扫描文件异常!', "target_type":target_type});
+								ipcRenderer.send('asynchronous-spider-backend', {"tag":"scan_file_list_failed", "params":params, "fid_list":fid_list, "parent_dir":parent_dir, "target_dir":target_dir, "pos":pos, "result":rs, "app_id":global_base_params.app_id, "task_name": task_name, "msg":'扫描文件异常!', "target_type":target_type, 'file_items': file_items, 'root_item':root_item});
 							}
 							retry_cnt += 1;
 						}
@@ -576,7 +757,7 @@ if(ele_remote){
 									
 								}
 							}
-							ipcRenderer.send('asynchronous-spider-backend', {"tag":"fetched_file_list", "params":params, "fid_list":fid_list, "parent_dir":parent_dir, "target_dir":target_dir, "pos":pos, "result":rs, "app_id":global_base_params.app_id, "task_name": task_name, "target_type":target_type});
+							ipcRenderer.send('asynchronous-spider-backend', {"tag":"fetched_file_list", "params":params, "fid_list":fid_list, "parent_dir":parent_dir, "target_dir":target_dir, "pos":pos, "result":rs, "app_id":global_base_params.app_id, "task_name": task_name, "target_type":target_type, "file_items":file_items, 'root_item':root_item});
 						} else {
 							retry_cnt = 0;
 							setTimeout(function() {deep_call(pos+1);}, 500+100*retry_cnt);
@@ -667,6 +848,130 @@ if(ele_remote){
 					callback("failed", null);
 				}
 			});
+		},
+		'group_user_list': function(_type, bdtk, ch, web_val, appid, ctype, start, limit, callback){
+			var path = '/mbox/group/list';
+			_type = 1;
+			var params = {
+				'start':start,
+				'limit':limit,
+				'type':_type,
+				bdstoken:bdtk,
+				channel:ch,
+				web:web_val,
+				app_id:appid,
+				logid:baidu_api.build_log_id(),
+				clienttype:ctype
+			};
+			var url = _build_get_url(path, params);
+			function re_call_fun(retry_cnt){
+				if(!retry_cnt){
+					retry_cnt = 0;
+				}
+				baidu_api.get_req(url, (rs)=>{
+					if(rs.errno!=0 && rs.errno!=-9){
+						send_log('group_user_list list sys err rs:', rs);
+					}
+					if(callback){
+						callback(null, rs);
+					}
+				},(err)=>{
+					if(retry_cnt < max_retry_cnt){
+						send_log('group_user_list to retry call:', err);
+						setTimeout(()=>{re_call_fun(retry_cnt+1);}, 1000 + retry_cnt * 100);
+					} else {
+						if(callback){
+							callback("failed", null);
+						}
+					}
+				});
+			}
+			re_call_fun(0);
+		},
+		'get_msg_list':function(_last_msg_time, _gid, gtype, bdtk, ch, web_val, appid, ctype, callback){
+			var path = '/mbox/group/listmsg';
+			var params = {
+				bdstoken:bdtk,
+				channel:ch,
+				web:web_val,
+				app_id:appid,
+				logid:baidu_api.build_log_id(),
+				clienttype:ctype
+			};
+			var url = _build_get_url(path, params);
+			var form_data = {
+				last_msg_time:_last_msg_time,
+				gid:_gid,
+				desc:0,
+				type:gtype
+			}
+			function re_call_fun(retry_cnt){
+				if(!retry_cnt){
+					retry_cnt = 0;
+				}
+				baidu_api.post_req(url, form_data, 'formdata', (rs)=>{
+					if(rs.errno!=0){
+						send_log('get_msg_list err rs:', rs);
+					}
+					if(callback){
+						callback(null, rs);
+					}
+				},(err)=>{
+					if(retry_cnt < max_retry_cnt){
+						send_log('get_msg_list to retry call:', err);
+						setTimeout(()=>{re_call_fun(retry_cnt+1);}, 1000 + retry_cnt * 100);
+					} else {
+						if(callback){
+							callback("failed", null);
+						}
+					}
+				});
+			}
+			re_call_fun(0);
+		},
+		'get_share_list':function(_gid, stype, bdtk, ch, web_val, appid, ctype, offset, limit, callback){
+			var path = '/mbox/group/listshare';
+			var stype = 2;
+			if(!limit)limit = 10;
+			var params = {
+				gid:_gid,
+				'limit':limit,
+				'offset':offset,
+				desc:1,
+				type:stype,
+				bdstoken:bdtk,
+				channel:ch,
+				web:web_val,
+				app_id:appid,
+				logid:baidu_api.build_log_id(),
+				clienttype:ctype
+			};
+			var url = _build_get_url(path, params);
+			function re_call_fun(retry_cnt){
+				if(!retry_cnt){
+					retry_cnt = 0;
+				}
+				baidu_api.get_req(url, (rs)=>{
+					if(rs.errno!=0 && rs.errno!=-9){
+						send_log('share list sys err rs:', rs);
+					}
+					if(callback){
+						callback(null, rs);
+					}
+				},(err)=>{
+					if(retry_cnt < max_retry_cnt){
+						send_log('get_share_list to retry call:', err);
+						setTimeout(()=>{re_call_fun(retry_cnt+1);}, 1000 + retry_cnt * 100);
+					} else {
+						if(callback){
+							callback("failed", null);
+						}
+					}
+				});
+			}
+			re_call_fun(0);
+			
+			// {"fs_id":533567695178108,"path":"\/_tmp\/shared\/\u542f\u58a8\u5b66\u9662","ctime":1575282783,"mtime":1575282783,"status":0,"isdir":1,"errno":0,"name":"\/_tmp\/shared\/\u542f\u58a8\u5b66\u9662","category":6}
 		},
 		'transfer_file':function(task, file, target_dir, callback){
 			var path = '/mbox/msg/transfer';
@@ -912,9 +1217,11 @@ if(ele_remote){
 	// 	});
 	// }
 	
-	// window.test=function(){
-	// 	alert('hello!');
-	// }
+	window.test=function(){
+		alert('hello!');
+		
+		ipcRenderer.send('asynchronous-spider-backend', {"tag":"sync_to_es"});
+	}
 	// console.log('hello i am here!');
 	function getElementAbsoluteOffsetTop(element){
 	  var absolute_offset_top = element.offsetTop;
@@ -1148,21 +1455,23 @@ if(ele_remote){
 		var all_fids = parent_node.querySelectorAll('li.on');
 		if(all_fids && all_fids.length>0){
 			var fid_list = [];
+			var file_items = {};
 			var isdir_map = {};
 			all_fids.forEach((li_obj, idx)=>{
 				var dt = li_obj.dataset;
 				if(dt && dt.hasOwnProperty('fid')){
 					isdir_map[dt.fid]=0;
 					fid_list.push(dt.fid);
+					file_items[dt.fid] = dt;
 					var desc_obj = li_obj.querySelector('a[data-dir]');
 					if(desc_obj){
 						isdir_map[dt.fid] = parseInt(desc_obj.dataset.dir);
 					}
 				}
 			});
-			cb(fid_list, isdir_map);
+			cb(fid_list, isdir_map, file_items);
 		} else {
-			cb(null, null);
+			cb(null, null, null);
 		}
 		
 	};

@@ -4,6 +4,7 @@ const helpers = require("./helper.core.js")
 const Base = require("./base.js")
 const Dao = require('./dao.js')
 const transfer_bulk_size = 499;
+let point = helpers.point;
 var file_list_db = new Dao({'type':'list', 'name':'file_list', 
 'fields':[{name:"id", type:'VARCHAR', len:20},
 		{name:"category", type:'INT'},
@@ -13,13 +14,18 @@ var file_list_db = new Dao({'type':'list', 'name':'file_list',
 		{name:"path", type:'VARCHAR', len:1024},
 		{name:"size", type:'INT'},
 		{name:"pin", type:'INT'},
+		{name:"synced", type:'INT'},
 		{name:"server_ctime", type:'INT'},
 		{name:"server_mtime", type:'INT'},
 		{name:"tm", type:'INT'},
+		{name:"root_id", type:'VARCHAR', len:20},
 		{name:"app_id", type:'INT'},
 		{name:"task_id", type:'INT'},
 	]
 });
+/*
+pin=> 0:init; 1:scan over; 2:start transfer; 5:transfered ok; 9:deleted;
+*/
 var transfer_tasks_db = new Dao({'type':'list', 'name':'transfer_tasks', 
 'fields':[{name:"id", type:'INT'},
 		{name:"path", type:'VARCHAR', len:1024},
@@ -40,16 +46,135 @@ var transfer_dirs_db = new Dao({'type':'list', 'name':'transfer_dirs',
 'fields':[{name:"id", type:'VARCHAR', len:512},
 		{name:"fs_id", type:'VARCHAR', len:20},
 		{name:"pin", type:'INT'},
+		{name:"task_id", type:'INT'},
 		{name:"app_id", type:'INT'}
 	]
 });
+var transfer_root_file_db = new Dao({'type':'list', 'name':'transfer_root_file', 
+'fields':[{name:"id", type:'VARCHAR', len:20},
+		{name:"fs_id", type:'VARCHAR', len:20},
+		{name:"msg_id", type:'VARCHAR', len:20},
+		{name:"gid", type:'VARCHAR', len:64},
+		{name:"from_uk", type:'VARCHAR', len:64},
+		{name:"path", type:'VARCHAR', len:1024},
+		{name:"name", type:'VARCHAR', len:256},
+		{name:"task_id", type:'INT'}
+	]
+});
 
+function call_pansite_by_post(token, point, path, jsondata, callback){
+	var headers = {"SURI-TOKEN": token, "Content-Type": "application/json"};
+	var content = JSON.stringify(jsondata);
+	var options = {
+		method: 'POST',
+		url: point + path,
+		followRedirect: false,
+		followOriginalHttpMethod: true,
+		timeout: 120000,
+		strictSSL: false,
+		headers: headers
+	};
+	var req = request(options, function(error, response, body){
+		var json_obj = JSON.parse(body);
+		if(!json_obj){
+			callback({"state": -1, "msg":"account not exist!"})
+			return;
+		} else {
+			callback(json_obj)
+		}
+	});
+	req.write(content);
+	req.end();
+}
 
 var fetch_file_list_helper = Base.extend({
 	constructor:function(context, options){
 		this.context = context;
 		this.options = options;
 		this.cache = {};
+	},
+	sync_to_es:function(task_id){
+		var self = this;
+		//1576237032676
+		// task_id = 1576237032676
+		// task_id = 1576215032981;
+		// task_id = 1576899115989;
+		var path = "source/synccommunity";
+		
+		var datas = [{id:1,name:'test'},{id:2,name:'test2'}];
+		var page_size = 100;
+		var counter = 0;
+		var fetch_datas = (token, tt_id, app_id, offset)=>{
+			if(!offset){
+				offset = 0;
+			}
+			var final_fun = (file_list, has_more)=>{
+				var file_list_ids = [];
+				file_list.forEach((f, idx)=>{file_list_ids.push(f.id);});
+				var sql="update file_list set synced=2 where id in('"+file_list_ids.join("','")+"')" ;
+				// console.log('final update file_list sql:', sql);
+				file_list_db.update_by_raw_sql(sql, (result)=>{
+					if(has_more){
+						setTimeout(()=>{fetch_datas(token, tt_id, app_id, offset);},1);
+					}
+				});
+			};
+			file_list_db.query_mult_params({'task_id': tt_id, 'app_id': app_id, 'synced':0, 'isdir':1}, (file_list)=>{				
+				if(file_list.length>0){
+					counter = counter + 1;
+					var file_list_ids = [];
+					file_list.forEach((f, idx)=>{file_list_ids.push(f.id);});
+					var sql="update file_list set synced=1 where id in('"+file_list_ids.join("','")+"')" ;
+					// console.log('ready update file_list sql:', sql);
+					file_list_db.update_by_raw_sql(sql, (result)=>{
+						// console.log('updated result:', result);
+						if(file_list.length < page_size){
+							sync_datas_to_es(token, tt_id, app_id, file_list,(res)=>{
+								console.log("fetch the last ["+counter * page_size+"] res:", res);
+								final_fun(file_list, false);
+							});
+						} else if(file_list.length == page_size){
+							sync_datas_to_es(token, tt_id, app_id, file_list,(res)=>{
+								console.log("fetch["+counter * page_size+"] res:", res);
+								final_fun(file_list, true);
+								// setTimeout(()=>{fetch_datas(token, tt_id, app_id, offset+page_size);},1);
+							});
+						}
+						
+					});
+				}
+				
+				// console.log("file_list:", file_list);
+			}, page_size, offset);
+		};
+		
+		var sync_datas_to_es = (token, tt_id, app_id, file_list, cb)=>{
+			var params = {
+				"source": "shared",
+				"sourceid": app_id,
+				"sourceuid": tt_id,
+				"datas": file_list
+			};
+			call_pansite_by_post(token, point, path, params, (res)=>{
+				if(cb){
+					cb(res);
+				}
+			});
+		};
+		
+		self.context.account.get_valid_token((token)=>{
+			if(token){
+				transfer_tasks_db.query_mult_params({"id": task_id},(tts)=>{
+					if(tts && tts.length>0){
+						var _tt = tts[0];
+						var app_id = _tt.app_id;
+						var git = _tt.gid;
+						fetch_datas(token, _tt.id, app_id, 0)
+					}
+				});
+			}
+		});
+		
 	},
 	update_options:function(key, value){
 		this.options[key] = value;
@@ -468,9 +593,11 @@ var fetch_file_list_helper = Base.extend({
 	del:function(task){
 		var self = this;
 		file_list_db.del('task_id', task.id, ()=>{
-			transfer_tasks_db.update_by_id(task.id,{'pin':9}, ()=>{
-				self.check_ready((tasks)=>{
-					self.context._dialog(tasks);
+			transfer_root_file_db.del('task_id', task.id, ()=>{
+				transfer_tasks_db.update_by_id(task.id,{'pin':9}, ()=>{
+					self.check_ready((tasks)=>{
+						self.context._dialog(tasks);
+					});
 				});
 			});
 		});
@@ -504,21 +631,26 @@ var fetch_file_list_helper = Base.extend({
 				}
 			});
 		}
-		function to_check_task_file_cnt(_t, cb){
+		var to_check_task_file_cnt=(_t, cb)=>{
 			var app_id = _t.app_id;
-			q_cnt(app_id, _t.id, (o_cnt, t_cnt, total_size)=>{
-				_t['over_count'] = o_cnt;
-				_t['total_count'] = t_cnt;
-				_t['total_size'] = total_size;
-				if(_t.num != _t.total_count){
-					_t.num = _t.total_count;
-					transfer_tasks_db.update_by_id(_t.id,{'num': _t.num},()=>{
+			self._query_root_files(_t, (modified_task, root_files)=>{
+				console.log('modified_task:', modified_task);
+				q_cnt(app_id, modified_task.id, (o_cnt, t_cnt, total_size)=>{
+					modified_task['over_count'] = o_cnt;
+					modified_task['total_count'] = t_cnt;
+					modified_task['total_size'] = total_size;
+					if(modified_task.num != modified_task.total_count){
+						modified_task.num = modified_task.total_count;
+						transfer_tasks_db.update_by_id(modified_task.id,{'num': modified_task.num},()=>{
+							cb();
+						});
+					} else {
 						cb();
-					});
-				} else {
-					cb();
-				}
+					}
+				});
+				
 			});
+			
 		}
 		transfer_tasks_db.query_mult_params({'app_id': this.options.app_id}, (items)=>{
 			if(items){
@@ -639,7 +771,39 @@ var fetch_file_list_helper = Base.extend({
 			sender.send('asynchronous-spider',args);
 		});
 	},
-	check_out_task:function(params, parent_dir, target_dir, app_id, cb, has_records, task_name, target_type){
+	fetch_root_item:function(task, root_id, cb){
+		var self = this;
+		var in_cb = (modified_task)=>{
+			var file_items = modified_task.file_items;
+			var root_item = file_items.hasOwnProperty(root_id)?file_items[root_id]:{};
+			cb(root_item, modified_task);
+		};
+		if(!task.hasOwnProperty('file_items')){
+			self._query_root_files(task, (modified_task, root_files)=>{
+				in_cb(modified_task);
+			});
+		} else {
+			in_cb(task);
+		}
+	},
+	_query_root_files:function(task, cb){
+		transfer_root_file_db.query_mult_params({'task_id':task.id},(items)=>{
+			var _file_items = {}
+			items.forEach((rf, idx)=>{
+				_file_items[rf.id] = {
+					id: rf.msg_id,
+					gid: rf.gid,
+					frm: rf.from_uk,
+					fid: rf.fs_id,
+					name: rf.name,
+					path: rf.path
+				};
+			});
+			task.file_items = _file_items;
+			cb(task, items);
+		});
+	},
+	check_out_task:function(params, parent_dir, target_dir, app_id, cb, has_records, task_name, target_type, file_items){
 		var self = this;
 		var path = parent_dir.join('/');
 		var key = ''+app_id+'_'+path+'_'+task_name+'_'+target_dir;
@@ -647,21 +811,64 @@ var fetch_file_list_helper = Base.extend({
 		var fromuk = params.fromuk;
 		var _gid = params._gid;
 		var stype = params.ftype;
+		var check_root_items = (t, file_items, cb)=>{
+			var all_root_items = [];
+			if(file_items){
+				for(var fid in file_items){
+					var _item = file_items[fid];
+					_item['tfid'] = fid;
+					all_root_items.push(_item);
+				}
+				
+				transfer_root_file_db.save_list_one_by_one(all_root_items,(new_item, _get_item, cb)=>{
+					cb(new_item);
+				},(r)=>{
+					return {
+						'id':r.tfid,
+						'msg_id':r.id,
+						'gid':r.gid,
+						'from_uk':r.frm,
+						'name':r.hasOwnProperty('name')?r.name:'',
+						'path':r.hasOwnProperty('path')?r.path:'',
+						'fs_id':r.fid,
+						'task_id':t.id
+					};
+				},(_list)=>{
+						console.log('root items save ok!', _list);
+						cb(_list);
+					});
+			}
+		};
 		if(this.cache.hasOwnProperty(key) && this.cache[key]){
+			
 			cb(this.cache[key]);
 		} else {
 			transfer_tasks_db.query_mult_params({'path': path, 'app_id': app_id, 'name':task_name, 'target_dir': target_dir}, (items)=>{
 				if(items && items.length>0){
 					var __item = items[0];
 					self.cache[key] = __item;
+					var _next_ = ()=>{
+						if(file_items){
+							check_root_items(__item, file_items, ()=>{
+								__item.file_items = file_items;
+								cb(__item);
+							});
+						} else {
+							self._query_root_files(__item, (modified_task, root_files)=>{
+								cb(modified_task);
+							});
+						}
+					};
 					if(has_records){
 						self.context.log('to update task:', __item);
 						__item.pin = 0;
 						transfer_tasks_db.update_by_id(__item.id, {'pin': 0}, ()=>{
-							cb(__item);
+							// cb(__item);
+							_next_();
 						});
 					} else {
-						cb(__item);
+						// cb(__item);
+						_next_();
 					}
 				} else {
 					var item = {
@@ -680,8 +887,11 @@ var fetch_file_list_helper = Base.extend({
 						'target_type':target_type
 					}
 					transfer_tasks_db.put(item, (_item)=>{
-						self.cache[key] = _item;
-						cb(_item);
+						check_root_items(_item, file_items, ()=>{
+							_item.file_items = file_items;
+							self.cache[key] = _item;
+							cb(_item);
+						});
 					});
 				}
 			});
@@ -730,7 +940,9 @@ var fetch_file_list_helper = Base.extend({
 					var file_item = items[0];
 					self.context.log('to_continue_fetch dir path:', file_item.path);
 					task.hide_resume = true;
-					sender.send('asynchronous-spider', {'tag':'fetched_sub_file_list_continue', 'parent_dir': parent_dir, 'fid_list':[file_item.id], 'target_dir': target_dir, 'task':task, 'target_type':target_type});
+					self.fetch_root_item(task, file_item.root_id, (root_item)=>{
+						sender.send('asynchronous-spider', {'tag':'fetched_sub_file_list_continue', 'parent_dir': parent_dir, 'fid_list':[file_item.id], 'target_dir': target_dir, 'task':task, 'target_type':target_type, 'root_item':root_item});
+					});
 				}else{
 					self._check_sub_file(app_id, task_id, parent_dir, target_dir, [], task, target_type);
 				}
@@ -770,7 +982,9 @@ var fetch_file_list_helper = Base.extend({
 				var file_item = items[0];
 				self.context.log('dir path:', file_item.path);
 				file_list_db.update_by_id(file_item.id, {'pin': 1},()=>{
-					sender.send('asynchronous-spider', {'tag':'fetched_sub_file_list_continue', 'parent_dir': parent_dir, 'fid_list':[file_item.id], 'target_dir': target_dir, 'task':_task, 'target_type':target_type});
+					self.fetch_root_item(_task, file_item.root_id, (root_item)=>{
+						sender.send('asynchronous-spider', {'tag':'fetched_sub_file_list_continue', 'parent_dir': parent_dir, 'fid_list':[file_item.id], 'target_dir': target_dir, 'task':_task, 'target_type':target_type, 'root_item':root_item});
+					});
 				});
 			} else {
 				file_list_db.query_count({'app_id': app_id, 'task_id':task_id, 'isdir':0},(cnt_row)=>{
@@ -804,7 +1018,7 @@ var fetch_file_list_helper = Base.extend({
 		var self = this;
 		var sender = this.context.win.webContents;
 		var params = args.params, fid_list = args.fid_list, parent_dir = args.parent_dir, target_dir = args.target_dir, pos = args.pos, 
-		result=args.result, app_id = args.app_id;
+		result=args.result, app_id = args.app_id, file_items = args.hasOwnProperty('file_items')?args.file_items:null, root_item = args.root_item;
 		var target_type = 'all';
 		var only_fetch_dir = false;
 		if(args.hasOwnProperty('target_type')){
@@ -874,6 +1088,7 @@ var fetch_file_list_helper = Base.extend({
 								'path':r.path,
 								'server_ctime':r.server_ctime,
 								'server_mtime':r.server_mtime,
+								'root_id':root_item.fid,
 								'tm':Date.now(),
 								'size':r.size,
 								'pin':0,
@@ -892,14 +1107,18 @@ var fetch_file_list_helper = Base.extend({
 					if(result.has_more == 1){
 						params.page += 1;
 						sender.send('asynchronous-spider',{'tag':'fetch_file_list_continue', 'params':params,
-							'fid_list': fid_list, 'parent_dir': parent_dir, 'pos': pos, 'task':_task, 'target_type':target_type
+							'fid_list': fid_list, 'parent_dir': parent_dir, 'pos': pos, 'task':_task, 'target_type':target_type, 
+							'root_item':root_item
 						})
 					} else {
 						pos = pos + 1;
 						params.page = 1;
 						if(pos < fid_list.length){
+							var target_fid = fid_list[pos];
+							var _root_item = _task.file_items.hasOwnProperty(target_fid)?_task.file_items[target_fid]:{}
 							sender.send('asynchronous-spider',{'tag':'fetch_file_list_continue', 'params':params,
-								'fid_list': fid_list, 'parent_dir': parent_dir, 'pos': pos, 'task':_task, 'target_type':target_type
+								'fid_list': fid_list, 'parent_dir': parent_dir, 'pos': pos, 'task':_task, 'target_type':target_type,
+								'root_item':_root_item
 							})
 						} else {
 							var re_call_update_file_pin=(pos)=>{
@@ -923,7 +1142,7 @@ var fetch_file_list_helper = Base.extend({
 					}
 				}
 			}
-		}, has_records, task_name, target_type);
+		}, has_records, task_name, target_type, file_items);
 	}
 });
 
