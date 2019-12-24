@@ -1,4 +1,5 @@
 const {BrowserWindow, ipcMain} = require('electron');
+const cfg = require('electron-cfg');
 const helpers = require("./helper.core.js")
 const async = require('async');
 const Dao = require('./dao.js')
@@ -22,6 +23,13 @@ const token_timeout = 7*24*60*60*1000;
 // if(!accounts_db.has('accounts').value()){
 //   accounts_db.defaults({accounts:{}}).write();
 // }
+function update_win_options(options){
+	var winCfg_options = cfg.window().options();
+	if(winCfg_options.hasOwnProperty('x')){
+		options['x'] = winCfg_options['x'];
+		options['y'] = winCfg_options['y'];
+	}
+}
 var loginWindow = null;
 var api = {
 	check_state:function(point, parent_win, callback){
@@ -153,9 +161,9 @@ function call_pansite_by_post(point, path, params, parent_win, callback){
 
 var createLoginWindow =(point, parent_win, callback) => {
 	if(loginWindow == null){
-		loginWindow = new BrowserWindow({
+		var _options = {
 		  width: 800,
-		  height: 550,
+		  height: 450,
 		  parent: parent_win,
 		  modal: true,
 		  show:false,
@@ -164,7 +172,9 @@ var createLoginWindow =(point, parent_win, callback) => {
 		    allowRunningInsecureContent: true,
 		  	preload: path.join(__dirname, 'login_renderer.js')
 		  }
-		});
+		};
+		update_win_options(_options);
+		loginWindow = new BrowserWindow(_options);
 	}
 	
 	loginWindow.once('ready-to-show', () => {
