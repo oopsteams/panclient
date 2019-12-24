@@ -154,8 +154,8 @@ function call_pansite_by_post(point, path, params, parent_win, callback){
 var createLoginWindow =(point, parent_win, callback) => {
 	if(loginWindow == null){
 		loginWindow = new BrowserWindow({
-		  width: 600,
-		  height: 400,
+		  width: 800,
+		  height: 550,
 		  parent: parent_win,
 		  modal: true,
 		  show:false,

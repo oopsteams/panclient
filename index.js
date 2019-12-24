@@ -215,16 +215,16 @@ const createWindow = () => {
   // mainWindow.loadURL(`file://${__dirname}/index.html`);
   mainWindow.loadURL(`file://${__dirname}/hello.html`);
 	mainWindow.webContents.on('new-window', (event, url, frameName, disposition, options, additionalFeatures)=>{
-		if(frameName == "modal"){
-			event.preventDefault();
-			helpers.extend(options, {
-				modal:true,
-				parent:mainWindow,
-				width:200,
-				height:100
-			});
-			event.newGuest = new BrowserWindow(options);
-		}
+		// if(frameName == "modal"){
+		// 	event.preventDefault();
+		// 	helpers.extend(options, {
+		// 		modal:true,
+		// 		parent:mainWindow,
+		// 		width:200,
+		// 		height:100
+		// 	});
+		// 	event.newGuest = new BrowserWindow(options);
+		// }
 	});
   // Open the DevTools.
   // mainWindow.webContents.openDevTools();
