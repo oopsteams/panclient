@@ -1,4 +1,5 @@
-const {BrowserWindow, ipcMain, session} = require('electron');
+const {BrowserWindow, ipcMain, Menu, session} = require('electron');
+const cfg = require('electron-cfg');
 const request = require('request');
 const urlib = require('url')
 const helpers = require("./helper.core.js")
@@ -98,7 +99,9 @@ function interceptHttp(){
 							self.fetch_helper.update_options('app_id', fetched_global_base_params.app_id);
 						}
 						self.fetch_helper.check_ready((tasks)=>{
-							self.win.webContents.send('asynchronous-spider',{'tag':'fetch_base_params', 'params':uri_obj.query, 'tasks':tasks});
+							if(self.win){
+								self.win.webContents.send('asynchronous-spider',{'tag':'fetch_base_params', 'params':uri_obj.query, 'tasks':tasks});
+							}
 						});
 					}
 					fetched_base_params_ok = true;
@@ -128,6 +131,13 @@ function empty(){
 function fetched_file_list_action(args){
 	this.fetch_helper.on_fetched(args)
 }
+function update_win_options(options){
+	var winCfg_options = cfg.window().options();
+	if(winCfg_options.hasOwnProperty('x')){
+		options['x'] = winCfg_options['x'];
+		options['y'] = winCfg_options['y'];
+	}
+}
 var window_helper = Base.extend({
 	constructor:function(account, parent_win, options){
 		this.account = account;
@@ -149,6 +159,7 @@ var window_helper = Base.extend({
 		var self = this;
 		self.first_show = false;
 		fetched_base_params_ok = false;
+		self.options['destroyed'](self);
 	},
 	log:function(){
 		var _args = [];
@@ -193,7 +204,9 @@ var window_helper = Base.extend({
 		var self = this;
 		self.popwin_params = params;
 		if(!self.popwin){
+			var winCfg_options = cfg.window().options();
 			var options = {
+						name:'spider_task',
 						modal:ismodal?true:false,
 						parent:self.win,
 						width:800,
@@ -209,6 +222,7 @@ var window_helper = Base.extend({
 						  preload: path.join(__dirname, 'spider_task.js')
 						}
 					};
+			update_win_options(options);
 			self.popwin = new BrowserWindow(options);
 			self.popwin.once('ready-to-show', () => {
 				self.popwin.show();
@@ -236,12 +250,12 @@ var window_helper = Base.extend({
 					var quota = args.quota;
 					var task = args.task;
 					self.log('start_transfer task:', task);
-					self.fetch_helper.transfer(task);
+					self.fetch_helper.start_to_transfer(task);
 				} else if('retry_transfer' == args.tag){
 					var quota = args.quota;
 					var task = args.task;
 					self.log('retry_transfer task:', task);
-					self.fetch_helper.transfer(task, true);
+					self.fetch_helper.start_to_transfer(task, true);
 					
 				} else if('delete_task' == args.tag){
 					self.fetch_helper.del(args.task);
@@ -257,12 +271,29 @@ var window_helper = Base.extend({
 		self.popwin.loadURL(`file://${__dirname}/transfer_tasks.html`);
 		
 	},
+	_deal_menu_items:function(menu_items){
+		
+		// for(var k=0;k<menu_items.length;k++){
+		// 	menu_items[k].visible = false;
+		// }
+		// var items = menu_items[2].submenu.items;
+		// for(var i=0;i<items.length;i++){
+		// 	var _item = items[i];
+		// 	if(_item.id == 'login_bd_pan'){
+		// 		console.log('_item:', _item);
+		// 		break;
+		// 	}
+		// }
+		// console.log('_menu_items:', menu_items[2].submenu.items);
+	},
 	open:function(){
 		var self = this;
 		var w = this.options['width']?this.options['width']:700;
 		var h = this.options['height']?this.options['height']:600;
 		if(!self.win){
-			this.win = new BrowserWindow({
+			var winCfg_options = cfg.window().options();
+			var win_options = {
+			  name:'bd_pan',
 			  width: w,
 			  height: h,
 			  parent: self.parent_win,
@@ -276,8 +307,16 @@ var window_helper = Base.extend({
 			    allowRunningInsecureContent: true,
 				preload: path.join(__dirname, 'spider.js')
 			  }
-			});
+			};
+			if(winCfg_options.hasOwnProperty('x')){
+				win_options['x'] = winCfg_options['x'];
+				win_options['y'] = winCfg_options['y'];
+			}
+			this.win = new BrowserWindow(win_options);
 			this.fetch_helper = new fetch_file_list_helper(this, {'account': this.account});
+			var _menu = self.options['menu'];
+			_menu.closePopup([self.parent_win]);
+			// self._deal_menu_items(_menu.items);
 		}
 		this.win.once('ready-to-show', () => {
 			this.first_show = true;

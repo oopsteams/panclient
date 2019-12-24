@@ -92,6 +92,9 @@ ipcRenderer.on('asynchronous-reply', function(event, args){
 			// 	console.log("loader:["+loader_id+"]:", loader);
 			// }
 			download_ui.update_download_tasks(tasks);
+		}else if("recover_btn" == tag){
+			var id = args.id;
+			$("#"+id).button('enable');
 		}
 	}
 });
@@ -108,6 +111,30 @@ var __token = null;
 // 	console.log('event:', event);
 // 	account_renderer.quit();
 // }, false);
+var init_ui = ()=>{
+	$( ".controlgroup" ).controlgroup();
+	$("#net_disk").button({icon: "ui-icon-disk", showLabel: false}).on("click", function (event, ui) {
+		$("#net_disk").button('disable');
+		ipcRenderer.send('asynchronous-message', {"tag":"btn_click",
+			"data": {}, 
+			"id": 'net_disk'}
+			);
+	}).end();
+	$("#download_list").button({icon: "ui-icon-grip-solid-horizontal", showLabel: false}).on("click", function (event, ui) {
+		$("#download_list").button('disable');
+		command('download');
+		// ipcRenderer.send('asynchronous-message', {"tag":"btn_click", "data": {}, "id": 'download_list'});
+	}).end();
+	$("#self_sync_root").button({icon: "ui-icon-refresh", showLabel: false}).on("click", function (event, ui) {
+		$("#self_sync_root").button('disable');
+		ipcRenderer.send('asynchronous-message', {"tag":"btn_click",
+			"data": {}, 
+			"id": 'self_sync_root'}
+			);
+		setTimeout(()=>{$("#self_sync_root").button('enable');}, 5000);
+	}).end();
+	
+};
 var dialog = null;
 $( function() {
 	function ready_for_tree(token){
@@ -125,6 +152,7 @@ $( function() {
 						dialog.dialog( "close" );
 					}
 				},
+				close: function(){$("#download_list").button('enable');},
 				resize: function(){
 					$("#accordion").accordion("refresh");
 				}
@@ -133,13 +161,14 @@ $( function() {
 				ready_for_search();
 				loaded();
 			});
+			init_ui();
 		}).fail(function() {
 			//TODO
 		});
 		
 		
 		$(window).resize(function () {
-			var h = Math.max($(window).height() - 0, 420);
+			var h = Math.max($(window).height() - 100, 420);
 			$('#container, #data, #tree').height(h).filter('.default').css('lineHeight', h + 'px');
 		}).resize();
 		$('#tree').jstree({
@@ -150,10 +179,11 @@ $( function() {
 					"data" : function (node) {
 						// console.log("lazy node:", node);
 						let p = "/";
+						let _params = { "id" : node.id, "path": p }
 						if(node.data){
-							p = node.data['path']
+							$.extend(_params, node.data)
 						}
-						return { "id" : node.id, "path": p };
+						return _params;
 					}
 				},
 				'check_callback' : function(o, n, p, i, m) {
@@ -409,7 +439,7 @@ $( function() {
 				update_tags();
 			}
 		});
-		$(".search").eq(0).button({icon: "ui-icon-search", showLabel: false}).end().on("click", function (event, ui) {
+		$(".search").eq(0).button({icon: "ui-icon-search", showLabel: false}).on("click", function (event, ui) {
 			console.log("event:", event);
 			console.log("ui:", ui);
 			console.log("keyword_input:", $('#keyword_input').val());

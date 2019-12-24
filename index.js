@@ -75,6 +75,7 @@ function ready_cookie_monitor(){
 	// 	console.log("是否删除:",removed);
 	// });
 }
+var menu = null;
 const createWindow = () => {
   // Create the browser window.
   mainWindow = cfg.window().create({
@@ -82,6 +83,7 @@ const createWindow = () => {
     height: 650,
 	show: false,
 	title:'Panclient',
+	name:'PanClient',
 	backgroudColor: '#2e2c29',
     webPreferences: {
       nodeIntegration: true,
@@ -182,6 +184,13 @@ const createWindow = () => {
 			if(loader){
 				loader.pause();
 			}
+		}else if("btn_click" == tag){
+			console.log('arg:', arg);
+			if('net_disk' == arg.id){
+				open_bd_pan();
+			}else if('self_sync_root' == arg.id){
+				sync(null, false);
+			}
 		}
 	
     }
@@ -232,17 +241,18 @@ const createWindow = () => {
   });
  
   const template = [
-    {
-      label: 'Edit',
-      submenu: [
-        { role: 'undo' },
-        { role: 'redo' },
-        { type: 'separator' },
-        { role: 'cut' },
-        { role: 'copy' },
-        { role: 'paste' }
-      ]
-    },
+  //   {
+  //     label: 'Edit',
+  //     submenu: [
+  //       // { role: 'undo' },
+  //       // { role: 'redo' },
+  //       // { type: 'separator' },
+  //       // { role: 'cut' },
+  //       // { role: 'copy' },
+  //       // { role: 'paste' },
+		// { role: 'quit' }
+  //     ]
+  //   },
 	{
 	  label: '增值服务',
 	  submenu: [
@@ -261,26 +271,26 @@ const createWindow = () => {
           }
         },
 		{ type: 'separator' },
-		{label: '同步所有', click: ()=>{sync(null, true);}},
-		{label: '同步根', click: ()=>{sync(null, false);}},
-		{label: '修复下载文件', click: ()=>{correct_download_task();}},
-		{label: '登录云盘', click: ()=>{open_bd_pan();}},
-		{label: '下载列表', click: ()=>{mainWindow.webContents.executeJavaScript("command('download')").then((result)=>{});}},
-        { type: 'separator' },
-        { role: 'reload' },
-        { role: 'forcereload' },
+		// {label: '同步所有', click: ()=>{sync(null, true);}, id: 'self_sync_all', role:'window'},
+		// {label: '同步根', click: ()=>{sync(null, false);}, id: 'self_sync_root', role:'window'},
+		// {label: '修复下载文件', click: ()=>{correct_download_task();}, id: 'self_recovery_download_file'},
+		// {label: '登录云盘', click: ()=>{open_bd_pan();}, id: 'login_bd_pan', role:'window'},
+		// {label: '下载列表', click: ()=>{mainWindow.webContents.executeJavaScript("command('download')").then((result)=>{});}, role:'window'},
+        // { type: 'separator' },
+        // { role: 'reload' },
+        // { role: 'forcereload' },
         { role: 'toggledevtools' },
-        { type: 'separator' },
-        { role: 'resetzoom' },
-        { role: 'zoomin' },
-        { role: 'zoomout' },
+        // { type: 'separator' },
+        // { role: 'resetzoom' },
+        // { role: 'zoomin' },
+        // { role: 'zoomout' },
         { type: 'separator' },
         { role: 'quit' }
       ]
     }
   ]
 
-  const menu = Menu.buildFromTemplate(template)
+  menu = Menu.buildFromTemplate(template)
   Menu.setApplicationMenu(menu)
 };
 
@@ -308,13 +318,16 @@ function correct_download_task(){
 		gSender.send("asynchronous-reply",{"tag":"error", "error":"sync download task ok!"})
 	});
 }
-var hide_open_bd_pan_menu = (show)=>{
-	if(!show){
-		
-	}
+var bd_pan_destroy_fun = (context)=>{
+	gSender.send("asynchronous-reply",{"tag":"recover_btn", "id":"net_disk"})
 };
-var wh = new window_helper(account, mainWindow, {width:1200,height:650,'url':'https://pan.baidu.com/', 'logger':logger, 'menu': hide_open_bd_pan_menu)});
+
+var wh = null;
 function open_bd_pan(){
+	if(!wh){
+		var wh_options = {width:1200,height:650,'url':'https://pan.baidu.com/', 'logger':logger, 'menu':menu, 'destroyed':bd_pan_destroy_fun}
+		wh = new window_helper(account, mainWindow, wh_options);
+	}
 	wh.open();
 }
 function sync(item_id, recursion){

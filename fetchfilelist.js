@@ -189,15 +189,17 @@ var fetch_file_list_helper = Base.extend({
 				var file = file_list[0];
 				self.context.log('file:', file);
 				file_list_db.update_by_id(file.id, {'pin': 4}, function(){
-					setTimeout(()=>{
-						sender.send('asynchronous-spider', {'tag':'start_transfer', 'parent_item': {'id':file.parent}, 'file':file, 'task': task});
-					}, 100);
-					
+					self.fetch_root_item(task, file.root_id, (root_item)=>{
+						setTimeout(()=>{
+							sender.send('asynchronous-spider', {'tag':'start_transfer', 'parent_item': {'id':file.parent}, 'file':file, 'task': task, 'root_item':root_item});
+						}, 100);
+					});
 				});
 			} else {
 				file_list_db.query_count({'task_id': task_id, 'isdir':0, 'app_id': app_id, 'pin': 5},(cnt_row)=>{
 					if(cnt_row){
 						var total_cnt = cnt_row.cnt;
+						// delete task['doing'];
 						if(task.num == total_cnt){
 							transfer_tasks_db.update_by_id(task_id, {'pin': 5}, ()=>{
 								self.check_ready((tasks)=>{
@@ -401,9 +403,11 @@ var fetch_file_list_helper = Base.extend({
 					if(may_bulk){
 						self.context.log('bulk transfer:', main_folder.filename, ',file count:', main_folder.total,', folder count:', main_folder.sub_folders.length, ',size:',helpers.scale_size(main_folder.size));
 						recursive_update_folder_sub_file(0, [main_folder].concat(main_folder.sub_folders),()=>{
-							setTimeout(()=>{
-								sender.send('asynchronous-spider', {'tag':'start_transfer', 'parent_item': parent_item, 'file':parent_item, 'task': task});
-							}, 100);
+							self.fetch_root_item(task, parent_item.root_id, (root_item)=>{
+								setTimeout(()=>{
+									sender.send('asynchronous-spider', {'tag':'start_transfer', 'parent_item': parent_item, 'file':parent_item, 'task': task, 'root_item':root_item});
+								}, 100);
+							});
 						});
 					} else {
 						parent_item.must_one_by_one = true;
@@ -419,9 +423,12 @@ var fetch_file_list_helper = Base.extend({
 					var file = file_list[0];
 					self.context.log('fetch_sub_file_list file:', file.filename);
 					file_list_db.update_by_id(file.id, {'pin': 4}, function(){
-						setTimeout(()=>{
-							sender.send('asynchronous-spider', {'tag':'start_transfer', 'parent_item': parent_item, 'file':file, 'task': task});
-						}, 100);
+						self.fetch_root_item(task, file.root_id, (root_item)=>{
+							setTimeout(()=>{
+								sender.send('asynchronous-spider', {'tag':'start_transfer', 'parent_item': parent_item, 'file':file, 'task': task, 'root_item':root_item});
+							}, 100);
+						});
+						
 						
 					});
 				} else {
@@ -504,23 +511,6 @@ var fetch_file_list_helper = Base.extend({
 					}
 					self.transfer(task);
 				});
-				// file_list_db.update_by_conditions({'parent':file.id,'task_id':task.id}, {'pin': 5}, function(){
-				// 	file_list_db.update_by_id(file.id, {'pin': 5}, function(){
-				// 		// console.log('dir tranfer ok!:', file.path);
-				// 		if(file.hasOwnProperty('total')){
-				// 			var cnt = file['total'];
-				// 			if(task.hasOwnProperty('over_count')){
-				// 				task['over_count'] = task['over_count'] + cnt;
-				// 				self.context.popwin_send({'tag':'progress',
-				// 					'id': task.id,
-				// 					'over': task['over_count'] == task['total_count'],
-				// 					'task': task
-				// 				});
-				// 			}
-				// 		}
-				// 		self.transfer(task);
-				// 	});
-				// });
 			}
 		} else {
 			if(failed){
@@ -547,15 +537,19 @@ var fetch_file_list_helper = Base.extend({
 			}
 		}
 	},
-	transfer:function(task,retry){
+	start_to_transfer:function(task, retry){
 		var self = this;
-		var task_id = task.id;
-		var app_id = task.app_id;
 		if(task.hasOwnProperty('doing')&&task.doing){
 			return;
 		} else {
 			task.doing = true;
 		}
+		self.transfer(task, retry);
+	},
+	transfer:function(task,retry){
+		var self = this;
+		var task_id = task.id;
+		var app_id = task.app_id;
 		if(retry){
 			task.retry=true;
 			file_list_db.update_by_conditions({'pin':4, 'task_id':task_id, 'isdir':1}, {'pin': 3}, function(){
@@ -739,13 +733,18 @@ var fetch_file_list_helper = Base.extend({
 							sender.send('asynchronous-spider',args);
 						} else {
 							// console.log('can not find the dir:', dir);
+							need_one_by_one = false; // optimize,skip mkdir
 							if(need_one_by_one){
-								sender.send('asynchronous-spider',{'tag':'check_self_dir', 'dir':target_dir, "task":task, "file": file, "parent_item": parent_item});
+								var __args = {'dir':target_dir};
+								helpers.extend(__args, args);
+								__args.tag = 'check_self_dir';
+								sender.send('asynchronous-spider',__args);
 							} else {
 								args.tag = 'to_transfer_confirm';
 								args.target_dir = target_dir;
 								sender.send('asynchronous-spider',args);
 							}
+							
 						}
 					});
 					

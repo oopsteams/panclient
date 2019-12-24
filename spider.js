@@ -1,5 +1,6 @@
 const ele_remote = require('electron').remote;
 if(ele_remote){
+	var ipcRenderer = require('electron').ipcRenderer;
 	function scale_size(get_size){
 	  var bit = 'B';
 	  var _size = get_size;
@@ -113,7 +114,7 @@ if(ele_remote){
 	var global_base_params = {};
 	window.global_base_params = global_base_params;
 	var target_map={};
-	var ipcRenderer = require('electron').ipcRenderer;
+	
 	var dialog = null;
 	var dialog_max_width = 450;
 	function get_shared_params(task){
@@ -491,16 +492,16 @@ if(ele_remote){
 			
 			deep_fetch_file_list_by_fid(fid_list, parent_dir, target_dir, params, null, false, task.name, target_type, _num, null, root_item);
 		}else if('check_self_dir' == args.tag){
-			var parent_item= args.parent_item, file=args.file, task= args.task;
+			var parent_item= args.parent_item, file=args.file, task= args.task, root_item = args.root_item;
 			var dir = args.dir;
 			check_self_list(dir, true, (rs)=>{
 				send_log('check_self_dir final rs:', rs);
 				if(rs){
-					ipcRenderer.send('asynchronous-spider-backend', {"tag":"check_self_dir_end", "dir":dir, "rs":rs, "task":task, "file": file, "parent_item": parent_item});
+					ipcRenderer.send('asynchronous-spider-backend', {"tag":"check_self_dir_end", "dir":dir, "rs":rs, "task":task, "file": file, "parent_item": parent_item, "root_item":root_item});
 				}
 			});
 		}else if('start_transfer' == args.tag){
-			var parent_item= args.parent_item, file=args.file, task= args.task;
+			var parent_item= args.parent_item, file=args.file, task= args.task, root_item = args.root_item;
 			// console.log('global_base_params:', global_base_params);
 			// console.log('window global_base_params:', window.global_base_params);
 			if(!global_base_params.hasOwnProperty('remain')){
@@ -509,16 +510,17 @@ if(ele_remote){
 			var remain = global_base_params.remain;
 			send_log('remain:',scale_size(remain),', file size:', scale_size(file.size));
 			if(remain > file.size){
-				ipcRenderer.send('asynchronous-spider-backend', {"tag":"to_check_file_dir", "task":task, "file": file, "parent_item": parent_item});
+				ipcRenderer.send('asynchronous-spider-backend', {"tag":"to_check_file_dir", "task":task, "file": file, "parent_item": parent_item, 'root_item':root_item});
 			} else {
 				alert('空间剩余不足!');
 			}
 		} else if('to_transfer_confirm' == args.tag){
-			var parent_item= args.parent_item, file=args.file, task= args.task, target_dir = args.target_dir;
+			var parent_item= args.parent_item, file=args.file, task= args.task, 
+			target_dir = args.target_dir, root_item = args.root_item;
 			var tmp_max_retry_cnt = 3;
 			
 			function to_transfer_file(task, file, target_dir,tmp_retry_cnt){
-				bd_proxy_api.transfer_file(task, file, target_dir, (err, rs)=>{
+				bd_proxy_api.transfer_file(task, file, target_dir, root_item, (err, rs)=>{
 					var maybe_failed = false;
 					if(rs){
 						if([0, -8].indexOf(rs.errno)>= 0){
@@ -973,7 +975,7 @@ if(ele_remote){
 			
 			// {"fs_id":533567695178108,"path":"\/_tmp\/shared\/\u542f\u58a8\u5b66\u9662","ctime":1575282783,"mtime":1575282783,"status":0,"isdir":1,"errno":0,"name":"\/_tmp\/shared\/\u542f\u58a8\u5b66\u9662","category":6}
 		},
-		'transfer_file':function(task, file, target_dir, callback){
+		'transfer_file':function(task, file, target_dir, root_item, callback){
 			var path = '/mbox/msg/transfer';
 			var params = {
 				bdstoken:global_base_params.bdstoken,
@@ -984,14 +986,27 @@ if(ele_remote){
 				clienttype:global_base_params.clienttype
 			};
 			var url = _build_get_url(path, params);
+			var __msgid = '', __fromuk = '', __gid = '', __stype = 2;
+			if(task.hasOwnProperty('from_uk')){
+				__msgid = task.msg_id;
+				__fromuk = task.from_uk;
+				__gid = task.gid;
+				__stype = task.stype;
+			}
+			if(root_item){
+				// send_log('root_item:', root_item);
+				__msgid = root_item.id;
+				__fromuk = root_item.frm;
+				__gid = root_item.gid;
+			}
 			var form_data = {
-				from_uk:task.from_uk,
-				msg_id:task.msg_id,
+				from_uk:__fromuk,
+				msg_id:__msgid,
 				path:target_dir,
 				ondup:'',//newcopy
 				async:1,
-				type:2,
-				gid:task.gid,
+				type:__stype,
+				gid:__gid,
 				fs_ids:'['+file.id+']'
 			}
 			function re_call_fun(retry_cnt){
