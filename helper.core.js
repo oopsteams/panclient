@@ -11,6 +11,8 @@ var helpers = {
 	  if(_size>1024){
 	    _size = Math.round((_size/1024) * 10)/10;
 	    bit = 'K';
+	  } else {
+		_size = Math.round(_size * 10)/10;
 	  }
 	  if(_size>1024){
 	   _size = Math.round((_size/1024) * 10)/10;

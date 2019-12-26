@@ -484,6 +484,17 @@ var Dao = Base.extend(
 			}
 			save_by_check(0);
 		},
+		del_all:function(cb){
+			var del_sql = "delete from "+ this.name;
+			this.db.run(del_sql, (err, rows)=>{
+				if(err != null){
+					throw err;
+				}
+				if(cb){
+					cb(rows);
+				}
+			});
+		},
 		del:function(key, value, cb){
 			var _f = this.find_field_by_name(key);
 			var del_sql = "delete from "+ this.name + " where " + key + "=" + this.format_val_by_type(_f, value);

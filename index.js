@@ -29,30 +29,18 @@ if(!fs.existsSync(data_dir)){
   
 // }
 // logger.transports.file.file = path.join(log_dir, helpers.log_dir_name);
-const Multi_loader = require('./multi.tokens.loader.js');
+const Multi_loader = require('./multi.node.loader.js');
 const account = require('./account.js');
-// const adapter = new FileSync(path.join(data_dir, "db.json"))
-// console.log(Dao);
-// var item_dao = new Dao({'path': path.join(data_dir, "item_cache"), 'type':'list', 'name':'item_cache'});
-// const db = low(adapter)
-// if(!db.has('item_cache').value()){
-//   db.defaults({item_cache:[]}).write();
-// }
-
-
-// Handle creating/removing shortcuts on Windows when installing/uninstalling.
-//if (require('electron-squirrel-startup')) { // eslint-disable-line global-require
-//  app.quit();
-//}
-
-// Keep a global reference of the window object, if you don't, the window will
-// be closed automatically when the JavaScript object is garbage collected.
-// 
 
 let point = helpers.point;
 let mainWindow;
 let gSender = null;
 var file_detail_cache = {}
+
+function on_quit_app(){
+	Multi_loader.stop();
+	dao.close();
+}
 
 // const fileloader = new FileLoader();
 // const multi_loader = new Multi_loader();
@@ -119,7 +107,7 @@ const createWindow = () => {
 					}else{
 					  res['tag'] = tag;
 					}
-					console.log('query_file_info dlink:', res['dlink']);
+					console.log('query_file_info dlink:', res['item']['dlink']);
 					event.sender.send('asynchronous-reply', res);
 				});
 			});
@@ -185,11 +173,13 @@ const createWindow = () => {
 				loader.pause();
 			}
 		}else if("btn_click" == tag){
-			console.log('arg:', arg);
+			// console.log('arg:', arg);
 			if('net_disk' == arg.id){
 				open_bd_pan();
 			}else if('self_sync_root' == arg.id){
 				sync(null, false);
+			}else if('reload_index' == arg.id){
+				reload_index();
 			}
 		}
 	
@@ -214,18 +204,6 @@ const createWindow = () => {
   // and load the index.html of the app.
   // mainWindow.loadURL(`file://${__dirname}/index.html`);
   mainWindow.loadURL(`file://${__dirname}/hello.html`);
-	mainWindow.webContents.on('new-window', (event, url, frameName, disposition, options, additionalFeatures)=>{
-		// if(frameName == "modal"){
-		// 	event.preventDefault();
-		// 	helpers.extend(options, {
-		// 		modal:true,
-		// 		parent:mainWindow,
-		// 		width:200,
-		// 		height:100
-		// 	});
-		// 	event.newGuest = new BrowserWindow(options);
-		// }
-	});
   // Open the DevTools.
   // mainWindow.webContents.openDevTools();
 
@@ -234,6 +212,8 @@ const createWindow = () => {
     // Dereference the window object, usually you would store windows
     // in an array if your app supports multi windows, this is the time
     // when you should delete the corresponding element.
+	on_quit_app();
+	app.quit();
     mainWindow = null;
   });
   mainWindow.on('ready-to-show', ()=>{mainWindow.show();
@@ -308,6 +288,15 @@ var ready = function(){
 		mainWindow.loadURL(`file://${__dirname}/hello.html`);
 	}
 })};
+var reload_index = function(){
+	account.check_state(point,mainWindow,(valide)=>{
+		if(valide){
+			mainWindow.loadURL(`file://${__dirname}/index.html`);
+		}else{
+			mainWindow.loadURL(`file://${__dirname}/hello.html`);
+		}
+	});
+}
 function relogin(){
 	account.clear_token();
 	ready();
@@ -362,19 +351,18 @@ function sync(item_id, recursion){
 app.on('window-all-closed', () => {
   // On OS X it is common for applications and their menu bar
   // to stay active until the user quits explicitly with Cmd + Q
-  Multi_loader.stop();
+  on_quit_app();
   if (process.platform !== 'darwin') {
     app.quit();
   }
-  dao.close();
 });
 
 app.on('activate', () => {
   // On OS X it's common to re-create a window in the app when the
   // dock icon is clicked and there are no other windows open.
-  if (mainWindow === null) {
-	ready();
-  }
+ //  if (mainWindow === null) {
+	// ready();
+ //  }
 });
 
 // In this file you can include the rest of your app's specific main process

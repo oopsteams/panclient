@@ -91,9 +91,10 @@
 					token = "error";
 				}
 				update_tags();
-				var mobile_no = document.getElementById("username").value;
-				var password = document.getElementById("password").value;
-				window.open("","info",'mobile_no='+mobile_no+',password='+password);
+				// var mobile_no = document.getElementById("username").value;
+				// var password = document.getElementById("password").value;
+				// window.open("","info",'mobile_no='+mobile_no+',password='+password);
+				to_login(isok)
 			}
 			function update_tags(){
 			    let v = $('#username').val();

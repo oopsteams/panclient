@@ -1,7 +1,7 @@
 const {BrowserWindow, ipcMain} = require('electron');
 const cfg = require('electron-cfg');
 const helpers = require("./helper.core.js")
-const async = require('async');
+// const async = require('async');
 const Dao = require('./dao.js')
 const check_access = require("./check_access_code.js")
 const request = require('request');
@@ -65,7 +65,8 @@ var api = {
 	},
 	clear_token:function(){
 		// accounts_db.get('accounts').assign({token: "", tm:0}).write();
-		accounts_db.put({id: "", tm:0});
+		// accounts_db.put({id: "", tm:0});
+		accounts_db.del_all();
 	},
 	get_valid_token:function(cb){
 		accounts_db.get(null, null, (user)=>{
@@ -163,7 +164,7 @@ var createLoginWindow =(point, parent_win, callback) => {
 	if(loginWindow == null){
 		var _options = {
 		  width: 800,
-		  height: 450,
+		  height: 470,
 		  parent: parent_win,
 		  modal: true,
 		  show:false,
@@ -190,27 +191,18 @@ var createLoginWindow =(point, parent_win, callback) => {
 	loginWindow.webContents.on('did-finish-load', () => {
 	    loginWindow.webContents.send('asynchronous-login', {tag:'start'});
 	  });
-	loginWindow.webContents.on('new-window', (event, url, frameName, disposition, options, additionalFeatures)=>{
-		if(frameName == "modal"){
-			event.preventDefault();
-			helpers.extend(options, {
-				modal:true,
-				parent:mainWindow,
-				width:200,
-				height:100
-			});
-			event.newGuest = new BrowserWindow(options);
-		}else if(frameName == "info"){
-			console.log("options:", options);
-			event.preventDefault();
-			async.map([options], (item, _callback)=>{if(item){
+	ipcMain.on('asynchronous-login-backend', (event, args) => {
+			console.log('ipcMain backend recv event:%s, args:%s', event, args);
+			if('click'==args.tag){
+				var context = args.context;
 				loginWindow.close();
-				if(!item.hasOwnProperty("mobile_no") || !item.hasOwnProperty("password")){
+				console.log('context:', context);
+				if(!context.hasOwnProperty("mobile_no") || !context.hasOwnProperty("password")){
 					callback(false);
 					api.check_state(point, parent_win, callback);
 				}else{
-					var mobile_no = item['mobile_no'];
-					var password = item['password'];
+					var mobile_no = context['mobile_no'];
+					var password = context['password'];
 					call_pansite_by_post(point, "login/", {"mobile_no": mobile_no, "password": password}, parent_win, function(isok, res){
 						if(isok){
 							callback(true);
@@ -223,17 +215,7 @@ var createLoginWindow =(point, parent_win, callback) => {
 							}
 						}
 					});
-					
 				}
-				_callback(null, 'ok');
-			}}, (err, result)=>{});
-			
-		}
-	});
-	ipcMain.on('asynchronous-login-backend', (event, args) => {
-			console.log('ipcMain backend recv event:%s, args:%s', event, args);
-			if('click'==args.tag){
-				
 			}
 			
 		});

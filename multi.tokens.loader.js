@@ -105,6 +105,8 @@ function scale_size(get_size){
   if(_size>1024){
     _size = Math.round((_size/1024) * 10)/10;
     bit = 'K';
+  } else {
+	_size = Math.round(_size * 10)/10;
   }
   if(_size>1024){
    _size = Math.round((_size/1024) * 10)/10;
@@ -154,6 +156,7 @@ function build_percentage(part_val, total){
 function query_file_info(token, item_id, callback){
 	tk = token;
 	item = get_from_cache(item_id, (item)=>{
+		console.log('cache item:', item);
 		if(item){
 			callback({'id': parseInt(item_id), 'item': item});
 			return;
@@ -201,11 +204,11 @@ var looper = helpers.looper;
 
 var is_running = false;
 
-function call_pansite_by_post(point, _path, params, callback){
+function call_pansite_by_post(tk, point, _path, params, callback){
 	var ithis = this;
 	
 	this.query_file_head_running = true;
-	headers = {"SURI-TOKEN": "login", "Content-Type": "application/x-www-form-urlencoded"};
+	headers = {"SURI-TOKEN": tk, "Content-Type": "application/x-www-form-urlencoded"};
 	var data = JSON.stringify(params);
 	// console.log("call_pansite_by_post params:", params);
 	var options = {
@@ -372,26 +375,35 @@ var Tasker = Base.extend({
 					dog = dog -1;
 					pos = pos + 1;
 				}
+				var rm_fs = function(){
+					try{
+						fs.unlinkSync(file_path);
+					}catch(e){
+						console.error(e);
+					}
+				};
 				var jsonstr = file_buffer.toString();
-				if(find_brace && find_quota){
+				if(jsonstr.indexOf('Requested')>=0){
+					error_msg = jsonstr;
+					rm_fs();
+					return {'error_code':9999, 'error_msg':error_msg}
+				} else if(jsonstr.indexOf('<html>')>=0){
+					var reg = new RegExp("<title>([^<>]*)</title>");
+					var r = jsonstr.match(reg);
+					error_msg = r[1];
+					rm_fs();
+					return {'error_code':9999, 'error_msg':error_msg}
+				} else if(find_brace && find_quota){
 					var json_obj = JSON.parse(jsonstr);
 					if(json_obj.hasOwnProperty("request_id") && json_obj.hasOwnProperty("error_code")){
-						try{
-							fs.unlinkSync(file_path);
-						}catch(e){
-							console.error(e);
-						}
+						rm_fs();
 						return json_obj;
 					}
 				} else {
 					var file_type = this.loader_context.task.type;
 					if(file_type && ['txt','log'].indexOf(file_type)<0){
 						if(jsonstr.indexOf('Requested')>=0){
-							try{
-								fs.unlinkSync(file_path);
-							}catch(e){
-								console.error(e);
-							}
+							rm_fs();
 							return {'error': jsonstr};
 						}
 					}
@@ -440,6 +452,11 @@ var Tasker = Base.extend({
 			  var check_rs = ithis.check_req_stream_file(file_path);
 			  if(check_rs){
 				  ithis.update_state(0);
+				  if(check_rs.hasOwnProperty('error_code')){
+					  if(31045 == check_rs.error_code){
+						  download_loader_db.update_by_id(loader.id, {'pin': 1});
+					  }
+				  }
 				  console.log("error 文件["+fn+"]下载失败!", check_rs);
 			  }else{
 				  ithis.update_state(2);
@@ -553,7 +570,10 @@ var CrossFileLoader = Base.extend({
 			cnt--;
 			if(cnt == 0){
 				console.log("final call build_main_tasks!");
-				this.context.build_main_tasks();
+				download_loader_db.query_mult_params({'source_id':this.context.task.id, 'pin':0}, (loader_list)=>{
+					ithis.loaders = loader_list;
+					ithis.context.build_main_tasks();
+				});
 			}
 		}
 		// if(section_index && section_index < len(dlink_list))
@@ -569,7 +589,7 @@ var CrossFileLoader = Base.extend({
 		}
 		if(this.isMaster()){
 			console.log('source_id:', this.context.task.id);
-			var loader_list = download_loader_db.query('source_id', this.context.task.id, (loader_list)=>{
+			download_loader_db.query_mult_params({'source_id':this.context.task.id, 'pin':0}, (loader_list)=>{
 				console.log('query source_id:', ithis.context.task.id);
 				console.log('query loader_list length:', loader_list.length);
 				var need_rebuild_loader = false;
@@ -587,7 +607,7 @@ var CrossFileLoader = Base.extend({
 				}
 				if(need_rebuild_loader){
 					_path = "source/readydownload";
-					call_pansite_by_post(POINT, _path, {"fs_id": ithis.item["fs_id"]}, (result)=>{
+					call_pansite_by_post(ithis.context.token, POINT, _path, {"fs_id": ithis.item["fs_id"]}, (result)=>{
 						console.log("readydownload result:", result);
 						ithis.build_download_thread(result, section_index);
 					});
@@ -629,7 +649,7 @@ var MultiFileLoader = Base.extend({
 	      if(!location){
 	        location = _headers['content-location'];
 	      }
-	      if(location){
+	      if(response.statusCode==302 && location){
 	        console.log('url     :', url);
 	        console.log('location:', location);
 	        console.log('query_redirect_deep:', ithis.query_redirect_deep);
@@ -653,8 +673,8 @@ var MultiFileLoader = Base.extend({
 	      // console.log("query_file_head _headers:", _headers);
 	      // console.log("query_file_head body:", body);
 	    } else {
-			console.log("statusCode:", response.statusCode);
-	      console.log("query_file_head fail:", error, response);
+			console.log("statusCode:", response.statusCode, ",query head failed!");
+	      // console.log("query_file_head fail:", error, response);
 		  callback(null, {info:"下载请求超时,请重新尝试!"})
 	    }
 	    ithis.query_file_head_running = false;
@@ -690,7 +710,7 @@ var MultiFileLoader = Base.extend({
 			}
 		});
 		
-		
+		var item = ithis.item;
 		var query_file_head_callback = function(url, params){
 			if(url == null && params['info']){
 				ithis.sender.send('asynchronous-reply', {'id': item.fs_id, 'info': params['info'], 'tag': 'download'});
@@ -709,6 +729,7 @@ var MultiFileLoader = Base.extend({
 			var i = 0;
 			var loader_index = i;
 			for(i=0;i<page_count-1;i++){
+				loader_index = i;
 				if(loader_index>loader_list.length){
 					loader_index = loader_list.length - 1;
 				}
@@ -1217,6 +1238,7 @@ var MultiFileLoader = Base.extend({
 	},
 	del:function(cb){
 		this.complete();
+		console.log('del task:', this.task);
 		download_task_db.del('id', this.task.id,()=>{
 			if(cb){cb();}
 		});

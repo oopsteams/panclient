@@ -125,7 +125,7 @@ var init_ui = ()=>{
 		command('download');
 		// ipcRenderer.send('asynchronous-message', {"tag":"btn_click", "data": {}, "id": 'download_list'});
 	}).end();
-	$("#self_sync_root").button({icon: "ui-icon-refresh", showLabel: false}).on("click", function (event, ui) {
+	$("#self_sync_root").button({icon: "ui-icon-transferthick-e-w", showLabel: false}).on("click", function (event, ui) {
 		$("#self_sync_root").button('disable');
 		ipcRenderer.send('asynchronous-message', {"tag":"btn_click",
 			"data": {}, 
@@ -133,7 +133,13 @@ var init_ui = ()=>{
 			);
 		setTimeout(()=>{$("#self_sync_root").button('enable');}, 5000);
 	}).end();
-	
+	$("#reload_index").button({icon: "ui-icon-refresh", showLabel: false}).on("click", function (event, ui) {
+		$("#reload_index").button('disable');
+		ipcRenderer.send('asynchronous-message', {"tag":"btn_click",
+			"data": {}, 
+			"id": 'reload_index'}
+			);
+	}).end();
 };
 var dialog = null;
 $( function() {
