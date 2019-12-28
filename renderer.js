@@ -151,9 +151,6 @@ $( function() {
 				width: dialog_max_width,
 				modal: true,
 				buttons: {
-					"Do": function () {
-
-					},
 					Cancel: function() {
 						dialog.dialog( "close" );
 					}

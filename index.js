@@ -95,7 +95,7 @@ const createWindow = () => {
  //  });
   ready_cookie_monitor();
   ipcMain.on('asynchronous-message', (event, arg) => {
-    console.log(arg) // prints "ping"
+    // console.log(arg) // prints "ping"
     //finfo
     if(arg && arg.hasOwnProperty('tag')){
 		var tag = arg['tag'];
