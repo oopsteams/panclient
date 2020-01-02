@@ -300,6 +300,15 @@ var Tasker = Base.extend({
 			return false;
 		}
 	},
+	fs_file_size:function(){
+		var fn = this.params.id;
+		var file_path = path.join(this.loader_context.download_file_path, fn);
+		if(fs.existsSync(file_path)){
+			var states = fs.statSync(file_path);
+			return states.size;
+		}
+		return null;
+	},
 	check_file_size:function(){
 		var params = this.params
 		var fn = this.params.id;
@@ -500,17 +509,17 @@ var Tasker = Base.extend({
 					  ithis.update_state(2, ()=>{final_call(2);});
 				  });
 			  }
-			}).on("timeout", function(){
-				ithis.update_state(5);
 			});
 			rq.on("error", function(err){
 			  console.log("rq error 文件["+fn+"]下载失败!===>",err);
 			  params['over'] = 1;
 			  params['tm'] = get_now_timestamp();
-			  ithis.update_state(4);
+			  // ithis.update_state(4);
+			  ithis.update_state(3);
 			}).on("timeout", function(){
 				console.log("rq error 文件["+fn+"]下载超时失败!");
-				ithis.update_state(5);
+				// ithis.update_state(5);
+				ithis.update_state(3);
 			});
 		}catch(e){
 			params['over'] = 1;
@@ -758,12 +767,12 @@ var MultiFileLoader = Base.extend({
 	_check_next_task:function(cb){
 		var ithis = this;
 		var self = this;
-		var loader_pos = 0;
-		var _loader_list = [];
 		if(this.checking_next_task){
 			console.log('check_next_task return ,waiting !!!!');
 			return false;
 		}
+		var loader_pos = 0;
+		var _loader_list = [];
 		var item = ithis.item;
 		var patch_tasks = [];
 		this.checking_next_task = true;
@@ -772,11 +781,13 @@ var MultiFileLoader = Base.extend({
 			if(patch_tasks.length>0){
 				ithis._re_call_emit_loader_thread(patch_tasks, (used_cnt)=>{
 					console.log('check_next_task, used_cnt, ld_cnt=>', used_cnt, _loader_list.length);
-					
+					self.checking_next_task = false;
 					cb();
 					
 				});
 				
+			} else {
+				self.checking_next_task = false;
 			}
 		}
 		var final_call = function(comeon){
@@ -787,11 +798,9 @@ var MultiFileLoader = Base.extend({
 					console.log('loader pos:', _lp);
 					async_re_call(0, _loader_list[_lp]);
 				} else {
-					self.checking_next_task = false;
 					do_patch_tasks();
 				}
 			} else {
-				self.checking_next_task = false;
 				do_patch_tasks();
 			}
 		};
@@ -805,7 +814,7 @@ var MultiFileLoader = Base.extend({
 			if(t.get_state() == 7){ //处理一下 state:3中途失败的段
 				console.log('find 7 state pos:', pos);
 				t.params.loader_id = loader.id;
-				t.params.pin = 0;
+				t.params.state = 0;
 				var retain_section_start = t.params.start + section_max_size;
 				var retain_section_end = t.params.end;
 				if(retain_section_end >= retain_section_start){
@@ -840,39 +849,40 @@ var MultiFileLoader = Base.extend({
 					}
 				});
 			} else if(t.get_state() == 3){
-				var file_real_size = t.check_file_size();
-				if(t.size() > file_real_size){
-					if(file_real_size>0){
-						var new_id = t.params.id+'_1';
-						if(t.params.idx == 2){
-							var id_vals = t.params.id.split('_');
-							var the_last_v = id_vals[id_vals.length-1];
-							the_last_v = parseInt(the_last_v) + 1;
-							id_vals[id_vals.length-1] = the_last_v;
-							new_id = id_vals.join('_');
-						}
-						var new_start = t.params.start+file_real_size;
-						var task_params = {'id':new_id, 'source_id':t.params.source_id, 'start':new_start, 'end':t.params.end, 'over':0, 'idx':2, 'retry':0, 'loader_id': t.params.loader_id, 'state': 0};
-						var _task = new Tasker(ithis, task_params);
-						_task.save(()=>{
-							t.update_pos(t.params.start, new_start, ()=>{
-								t.update_state(2,()=>{
-									// async_re_call(pos+1);
-									ithis.tasks.push(_task);
-									patch_tasks.push(_task);
-									final_call(true);
-								});
+				var file_real_size = t.fs_file_size();
+				if(file_real_size && file_real_size>0 && file_real_size < 2048){
+					t.update_state(0,()=>{
+						fs.unlinkSync(file_path);
+						patch_tasks.push(t);
+						final_call(true);
+					});
+				} else if(file_real_size && t.size() > file_real_size){
+					var new_id = t.params.id+'_1';
+					if(t.params.idx == 2){
+						var id_vals = t.params.id.split('_');
+						var the_last_v = id_vals[id_vals.length-1];
+						the_last_v = parseInt(the_last_v) + 1;
+						id_vals[id_vals.length-1] = the_last_v;
+						new_id = id_vals.join('_');
+					}
+					var new_start = t.params.start+file_real_size;
+					var task_params = {'id':new_id, 'source_id':t.params.source_id, 'start':new_start, 'end':t.params.end, 'over':0, 'idx':2, 'retry':0, 'loader_id': t.params.loader_id, 'state': 0};
+					var _task = new Tasker(ithis, task_params);
+					_task.save(()=>{
+						t.update_pos(t.params.start, new_start, ()=>{
+							t.update_state(2,()=>{
+								// async_re_call(pos+1);
+								ithis.tasks.push(_task);
+								patch_tasks.push(_task);
+								final_call(true);
 							});
 						});
-					} else {
-						t.update_state(0,()=>{
-							patch_tasks.push(t);
-							final_call(true);
-						});
-					}
-					
+					});
 				} else {
-					async_re_call(pos + 1, loader);
+					t.update_state(0,()=>{
+						patch_tasks.push(t);
+						final_call(true);
+					});
 				}
 			}else {
 				async_re_call(pos + 1, loader);
@@ -1090,8 +1100,11 @@ var MultiFileLoader = Base.extend({
 					  console.log(filemd5);
 					  if(ithis.task.md5_val == filemd5){
 						  console.log("成功!清除辅助文件...");
-						  ithis.complete();
+						  // ithis.complete();
+					  } else {
+						  console.log("MD5比对失败!清除辅助文件...");
 					  }
+					  ithis.complete();
 					});
 				});
 			}, 1000);
