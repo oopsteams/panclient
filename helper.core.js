@@ -1,4 +1,5 @@
 const fs = require('fs');
+const path = require('path');
 var helpers = {
 	// point:"http://192.168.0.101:8080/",
 	point:"http://127.0.0.1:8080/",
@@ -281,6 +282,117 @@ var helpers = {
 	    });
 	  }
 	  cb();
+	},
+	file_rename:function(origin_file_path, new_file_path, on_exists_bak, cb){
+		if(fs.existsSync(origin_file_path)){
+			if(fs.existsSync(new_file_path)){
+				if(on_exists_bak){
+					var bak_suffix = on_exists_bak();
+					if(bak_suffix){
+						var bak_path = path.join(new_file_path, bak_suffix);
+						self.file_rename(new_file_path, bak_path);
+					} else {
+						fs.unlinkSync(new_file_path);
+					}
+				} else {
+					fs.unlinkSync(new_file_path);
+				}
+			}
+			fs.rename(origin_file_path, new_file_path, (err)=>{
+				if(err){
+					throw err;
+				}
+				if(cb){
+					cb();
+				}
+			});
+		} else {
+			throw "["+origin_file_path+"] not exists!";
+		}
+	},
+	copy_files_skip_size:function(files, final_file, skip, callback){
+		var self = this;
+		if(files.length == 0){
+			return;
+		}
+		var start_pos = 0, end_pos = 0;
+		if(skip>0){
+			var l = 0;
+			files.forEach((f, idx)=>{
+				if(fs.existsSync(f)){
+					var stat = fs.statSync(f);
+					l += stat.size;
+				}
+			});
+			end_pos = l - skip - 1;
+		}
+		self.copy_files_by_range(files, final_file, start_pos, end_pos, callback);
+	},
+	copy_files_by_range:function(files, final_file, start, end, callback){
+		if(files.length == 0){
+			if(callback)callback();
+			return;
+		}
+		var _s = start, _e = end;
+		var _f_options = {};
+		var _files = [];
+		var l = 0;
+		files.forEach((f, idx)=>{
+			_f_options[f] = {};
+			var need_push = true;
+			var stat = fs.statSync(f);
+			var _f_size = stat.size;
+			if(_s>0){
+				if(stat.size>_s){
+				  _f_options[f]['start'] = _s;
+				  _s = 0;
+				  _files.push(f);
+				  _f_size = stat.size - _s;
+				}else{
+					_f_size = 0;
+					_s -= stat.size;
+					need_push = false;
+				}
+			}
+			if(_e > 0){
+				if(l + stat.size - 1 <= _e){
+					l += stat.size;
+				} else {
+					var skip_end = l + stat.size - 1 - _e;
+					if(skip_end > 0){
+						_f_options[f]['end'] = stat.size - skip_end - 1;
+						l = _e + 1;
+					} else {
+						need_push = false;
+					}
+				}
+			}
+			if(need_push){
+				_files.push(f);
+			}
+		});
+		target_fs = fs.createWriteStream(final_file);
+		var pos = 0;
+		var read_stream_options = {start:0};
+		function cb(){
+		  if(!_files.length){
+		    target_fs.end();
+		    if(callback)callback();
+		    return;
+		  }
+		  var ori_file = _files.shift();
+		  if(_f_options.hasOwnProperty(ori_file)){
+			  var _f_opt = _f_options[ori_file];
+			  helpers.extend(read_stream_options, _f_opt);
+			  console.log('new stream_options:', read_stream_options);
+		  }
+		  stream = fs.createReadStream(ori_file, read_stream_options);
+		  stream.pipe(target_fs, {end:false});
+		  stream.on("end", function(){
+		    cb();
+		  });
+		}
+		cb();
 	}
 };
 module.exports = helpers;

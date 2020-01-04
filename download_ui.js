@@ -7,16 +7,21 @@ var icons = {
 };
 var _id_reg = new RegExp("_id_", "g");
 var _title_reg = new RegExp("_title_", "g");
-var item_format = '<h3 id="_id__h"><table width="100%" class="gridtable"><tr id="_id__tr"><td style="width:130px;"><div style="width:130px;text-overflow:ellipsis;overflow:hidden;white-space:nowrap;" title="_title_">_title_</div></td><td><div id="_id__progressbar" title="_title_"></div></td><td width="95px" id="_id__speed"></td><td width="40px"><button id="_id__btn">&nbsp;</button></td><td width="40px"><button id="_id__act_btn">&nbsp;</button></td></tr></table></h3><div id="_id__sub_container">&nbsp;</div>';
+var item_format = '<h3 id="_id__h"><table width="100%" class="gridtable"><tr id="_id__tr"><td style="width:130px;"><div style="width:130px;text-overflow:ellipsis;overflow:hidden;white-space:nowrap;" title="_title_">_title_</div></td><td><div id="_id__progressbar" title="_title_"></div></td><td width="95px" id="_id__speed"></td><td width="40px"><button id="_id__btn">&nbsp;</button></td><td width="40px"><button id="_id__act_btn">&nbsp;</button></td></tr></table></h3><div id="_id__sub_container" style="height:120px;max-height:120px" class="sub_container">&nbsp;</div>';
 function build_sub_progress(sub_task_id, r, title, sub_container){
 	var elem_id = sub_task_id+"_sub_progressbar";
 	var sub_progress = sub_container.find('#'+elem_id);
 	if(sub_progress.length == 0){
 		var prog_html = '<div id="'+elem_id+'" title="'+title+'" style="height:8px;"></div>';
-		sub_container.append($(prog_html));
+		// sub_container.append($(prog_html));
+		sub_container.prepend($(prog_html));
 		sub_progress = $('#'+elem_id);
 		sub_progress.progressbar({value: false});
-		setTimeout(()=>{$("#accordion").accordion("refresh");},100);
+		setTimeout(()=>{
+			$("#accordion").accordion("refresh");
+			update_sub_container(sub_task_id);
+		},100);
+		
 	}
 	sub_progress.attr('title', title);
 	sub_progress.progressbar("value", r);
@@ -32,9 +37,22 @@ function check_sub_progress(sub_task_id, r, title, sub_container){
 function remove_accordion_item(sub_task_id){
 	var sub_container = sub_task_id+"_sub_container";
 	var h_id = sub_task_id+"_h";
+	console.log('remove sub_container:', sub_container);
+	console.log('remove sub_task_id:', h_id);
 	$("#"+sub_container).remove();
 	$("#"+h_id).remove();
 	setTimeout(()=>{$("#accordion").accordion("refresh");},100);
+}
+function update_sub_container(loader_id){
+	// var sub_container = $('#'+loader_id+'_sub_container');
+	// sub_container.resizable('option','maxHeight', 120);
+}
+function init_sub_container(loader_id){
+	// var sub_container = $('#'+loader_id+'_sub_container');
+	// sub_container.resizable({
+	//       maxHeight: 120,
+	//       minHeight: 70
+	//     });
 }
 var download_ui = {
 	update_download_tasks: function(tasks){
@@ -42,7 +60,7 @@ var download_ui = {
 		if(!tasks_container[0].obj){
 			// tasks_container[0].obj = tasks_container.accordion({collapsible: true, active:false});
 			// tasks_container[0].obj = tasks_container.accordion({heightStyle: "fill"});
-			tasks_container[0].obj = tasks_container.accordion({});
+			tasks_container[0].obj = tasks_container.accordion({heightStyle: "content"});
 		}
 		var loader_list = [];
 		for(var loader_id in tasks){
@@ -112,6 +130,8 @@ var download_ui = {
 						ipcRenderer.send('asynchronous-message', {"tag":"move_file", "id": loader.task.id});
 					}
 				});
+				init_sub_container(loader_id);
+				
 				var _progressbar = $("#"+loader_id+"_progressbar");
 				tr[0].progressbar = _progressbar;
 				var _prog = _progressbar.progressbar({
@@ -122,7 +142,7 @@ var download_ui = {
 				      complete: function() {
 				        dialog.dialog( "option", "buttons", [{
 				          text: "Close",
-				          click: function(){alert('to close');}
+				          click: function(){dialog.dialog('close');}
 				        }]);
 				        $(".ui-dialog button").last().trigger( "focus" );
 				      }

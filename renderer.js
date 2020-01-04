@@ -95,6 +95,8 @@ ipcRenderer.on('asynchronous-reply', function(event, args){
 		}else if("recover_btn" == tag){
 			var id = args.id;
 			$("#"+id).button('enable');
+		}else if("show_dialog" == tag){
+			command('download');
 		}
 	}
 });
@@ -152,7 +154,7 @@ $( function() {
 				modal: true,
 				buttons: {
 					Cancel: function() {
-						dialog.dialog( "close" );
+						$("#dialog").dialog("close");
 					}
 				},
 				close: function(){$("#download_list").button('enable');},

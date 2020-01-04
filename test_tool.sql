@@ -15,6 +15,43 @@ select id, parent, filename, size from file_list where task_id= and parent=
 delete from file_list where task_id= and parent=
 delete from file_list where task_id= and id=
 
+nodejs 验证 md5
+
+var crypto = require('crypto');
+var md5 = crypto.createHash('md5');
+const fs = require('fs');
+var final_file = '/Users/susy/._download/575694627572237/test.mp4';
+const input = fs.createReadStream(final_file);
+var md5_pipe = input.on('data', (chunk)=>{md5.update(chunk);}).on('end', 
+()=>{
+	var filemd5 = md5.digest('hex');
+	console.log("filemd5:",filemd5);
+	}
+);
+
+origin_file_path = '/Users/susy/._download/148814403407581/148814403407581_4_1_err';
+new_file_path = '/Users/susy/._download/148814403407581/148814403407581_4_1_err_bak';
+var copy_files_skip_size=function(files, final_file, skip, callback){
+		var self = this;
+		if(files.length == 0){
+			return;
+		}
+		var start_pos = 0, end_pos = 0;
+		if(skip>0){
+			var l = 0;
+			files.forEach((f, idx)=>{
+				if(fs.existsSync(f)){
+					var stat = fs.statSync(f);
+					l += stat.size;
+				}
+			});
+			end_pos = l - skip - 1;
+		}
+		console.log('start_pos:',start_pos);
+		console.log('end_pos:',end_pos);
+		//copy_files_by_range(files, final_file, start_pos, end_pos, callback);
+	}
+
 var params={
 	bdstoken:'82c3dc0e7fae33c5a0da28b3a3a6347a',
 	channel: 'chunlei',
