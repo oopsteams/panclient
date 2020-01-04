@@ -264,6 +264,7 @@ var Tasker = Base.extend({
 							if(cb){
 								cb(true);
 							}
+							fs.unlinkSync(n_file_path);
 						});
 					});
 				}
