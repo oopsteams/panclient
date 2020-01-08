@@ -1,7 +1,8 @@
 const Base = require("./base.js")
 const helpers = require("./helper.core.js")
 const util = require('util');
-const sqlite3 = require('sqlite3').verbose();
+// const sqlite3 = require('sqlite3').verbose();
+const sqlite3 = require('sqlite3');
 // const low =  require('lowdb');
 // const FileSync = require('lowdb/adapters/FileSync')
 const os =  require('os');
@@ -512,5 +513,7 @@ var Dao = Base.extend(
 		}
 	}
 );
-Dao.close = ()=>{g_db.close();};
+Dao.close = ()=>{
+	g_db.close();
+};
 module.exports = Dao;

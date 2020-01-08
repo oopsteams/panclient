@@ -228,7 +228,7 @@ $( function() {
 								);
 						}
 					};
-					if(this.get_type(node) === "file") {
+					if(node.icon === 'file'){
 						delete ctxmenu.sync;
 					}
 					return ctxmenu;
