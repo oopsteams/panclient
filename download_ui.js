@@ -60,7 +60,7 @@ var download_ui = {
 		if(!tasks_container[0].obj){
 			// tasks_container[0].obj = tasks_container.accordion({collapsible: true, active:false});
 			// tasks_container[0].obj = tasks_container.accordion({heightStyle: "fill"});
-			tasks_container[0].obj = tasks_container.accordion({heightStyle: "content"});
+			tasks_container[0].obj = tasks_container.accordion({heightStyle: "content",collapsible: true});
 		}
 		var loader_list = [];
 		for(var loader_id in tasks){
@@ -77,7 +77,7 @@ var download_ui = {
 			if(tr.length==0){
 				var task_dom = item_format.replace(_id_reg, loader_id).replace(_title_reg, loader.task.filename);
 				console.log("task_dom:", task_dom);
-				tasks_container.append($(task_dom));
+				tasks_container.prepend($(task_dom));
 				tr=tasks_container.find('#'+loader_id+'_tr');
 				var act_btn = $('#'+loader_id+'_act_btn');
 				act_btn[0].loader = loader;
