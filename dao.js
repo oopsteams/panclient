@@ -1,30 +1,55 @@
 const Base = require("./base.js")
 const helpers = require("./helper.core.js")
 const util = require('util');
-// const sqlite3 = require('sqlite3').verbose();
-const sqlite3 = require('sqlite3');
+const sqlite3 = require('sqlite3').verbose();
+// const sqlite3 = require('sqlite3');
 // const low =  require('lowdb');
 // const FileSync = require('lowdb/adapters/FileSync')
 const os =  require('os');
 var path = require('path');
 var base_dir = os.homedir();
 var data_dir = path.join(base_dir, helpers.data_dir_name);
+// const db_conn_timeout = 30 * 60 * 1000;
+const db_conn_timeout = 15 * 60 * 1000;
 const g_db_name = ".datas";
 const create_table_format = 'CREATE TABLE IF NOT EXISTS %s (%s)';
 const g_db_file_path = path.join(data_dir, g_db_name);
-const g_db = new sqlite3.Database(g_db_file_path,function(err) {
+var last_update_tm = helpers.now();
+var g_db = null;
+var looper_listener = (p)=>{
+	if(helpers.now() - last_update_tm >= db_conn_timeout){
+		// to close db.
+		console.log('db连接闲置超时,需要重连!');
+		if(g_db)Dao.close();
+		g_db = build_db_inst();
+		last_update_tm = helpers.now();
+	}
+};
+var build_db_inst = ()=>{
+	return new sqlite3.Database(g_db_file_path,function(err) {
+		if(err){
+			const g_db = new sqlite3.Database(g_db_file_path,(err)=>{
 				if(err){
-					const g_db = new sqlite3.Database(g_db_file_path,(err)=>{
-						if(err){
-							throw err;
-						} else {
-							console.log("创建DB成功!", g_db_file_path);
-						}
-					});
+					throw err;
 				} else {
 					console.log("创建DB成功!", g_db_file_path);
+					helpers.looper.addListener('sqlite3', looper_listener, {context:g_db, tm:helpers.now()});
 				}
 			});
+		} else {
+			console.log("创建DB成功!", g_db_file_path);
+			helpers.looper.addListener('sqlite3', looper_listener, {context:g_db, tm:helpers.now()});
+		}
+	});
+};
+g_db = build_db_inst();
+var before_call = ()=>{
+	if(!g_db){
+		console.log('重建 db 链接!');
+		g_db = build_db_inst();
+	}
+	last_update_tm = helpers.now();
+};
 var Dao = Base.extend(
 	{
 		constructor:function(options){
@@ -117,6 +142,7 @@ var Dao = Base.extend(
 		},
 		put:function(item, cb){
 			var ithis = this;
+			before_call.apply(ithis);
 			var mapping_list = this.mapping_to_insert_sql(item);
 			// console.log('put mapping_list:', mapping_list);
 			// console.log('put item:', item);
@@ -164,6 +190,7 @@ var Dao = Base.extend(
 		},
 		update_by_conditions: function(conditions, params, cb){
 			var ithis = this;
+			before_call.apply(ithis);
 			var where_str = '';
 			for(var k in conditions){
 				var _f = this.find_field_by_name(k);
@@ -200,6 +227,7 @@ var Dao = Base.extend(
 			});
 		},
 		update_by_id:function(id, params, cb){
+			before_call.apply(this);
 			var mapping_list = this.mapping_to_insert_sql(params);
 			var set_sql = "";
 			var db_id_val = id;
@@ -230,6 +258,7 @@ var Dao = Base.extend(
 			// }
 		},
 		get:function(key, value, cb){
+			before_call.apply(this);
 			var ithis = this;
 			if(key && value){
 				var _f = this.find_field_by_name(key);
@@ -263,6 +292,7 @@ var Dao = Base.extend(
 			}
 		},
 		query:function(key, value, cb){
+			before_call.apply(this);
 			var ithis = this;
 			var _f = this.find_field_by_name(key);
 			var query_rows = "select * from " + this.name + " where " + key + "=" + this.format_val_by_type(_f, value);
@@ -279,6 +309,7 @@ var Dao = Base.extend(
 			
 		},
 		query_count:function(params, cb){
+			before_call.apply(this);
 			var ithis = this;
 			var where_str = '';
 			for(var k in params){
@@ -304,6 +335,7 @@ var Dao = Base.extend(
 			});
 		},
 		query_sum:function(key, params, cb){
+			before_call.apply(this);
 			var ithis = this;
 			var where_str = '';
 			for(var k in params){
@@ -329,6 +361,7 @@ var Dao = Base.extend(
 			});
 		},
 		query_mult_params:function(params, cb, size, offset, orderby){
+			before_call.apply(this);
 			var ithis = this;
 			var where_str = '';
 			if(!orderby){
@@ -369,6 +402,7 @@ var Dao = Base.extend(
 			
 		},
 		update_by_raw_sql:function(sql, cb){
+			before_call.apply(this);
 			var ithis = this;
 			if(sql){
 				ithis.db.run(sql, (err, result)=>{
@@ -387,6 +421,7 @@ var Dao = Base.extend(
 			}
 		},
 		query_by_raw_sql:function(sql, cb){
+			before_call.apply(this);
 			var ithis = this;
 			if(sql){
 				ithis.db.all(sql, (err, rows)=>{
@@ -405,6 +440,7 @@ var Dao = Base.extend(
 			}
 		},
 		query_start_with_params:function(params, cb, size, offset){
+			before_call.apply(this);
 			var ithis = this;
 			var where_str = '';
 			if(!offset){
@@ -446,6 +482,7 @@ var Dao = Base.extend(
 			
 		},
 		save_list_one_by_one:function(item_list,conflict_check_cb, mapping,cb){
+			before_call.apply(this);
 			var self = this;
 			function save_by_check(pos){
 				if(pos>=item_list.length){
@@ -486,6 +523,7 @@ var Dao = Base.extend(
 			save_by_check(0);
 		},
 		del_all:function(cb){
+			before_call.apply(this);
 			var del_sql = "delete from "+ this.name;
 			this.db.run(del_sql, (err, rows)=>{
 				if(err != null){
@@ -497,6 +535,7 @@ var Dao = Base.extend(
 			});
 		},
 		del:function(key, value, cb){
+			before_call.apply(this);
 			var _f = this.find_field_by_name(key);
 			var del_sql = "delete from "+ this.name + " where " + key + "=" + this.format_val_by_type(_f, value);
 			// console.log("del query_rows:",del_sql);
@@ -514,6 +553,8 @@ var Dao = Base.extend(
 	}
 );
 Dao.close = ()=>{
-	g_db.close();
+	try{
+		// g_db.close();
+	} catch (e){}
 };
 module.exports = Dao;
