@@ -7,7 +7,7 @@ var icons = {
 };
 var _id_reg = new RegExp("_id_", "g");
 var _title_reg = new RegExp("_title_", "g");
-var item_format = '<h3 id="_id__h"><table width="100%" class="gridtable"><tr id="_id__tr"><td style="width:130px;"><div style="width:130px;text-overflow:ellipsis;overflow:hidden;white-space:nowrap;" title="_title_">_title_</div></td><td><div id="_id__progressbar" title="_title_"></div></td><td width="95px" id="_id__speed"></td><td width="40px"><button id="_id__btn">&nbsp;</button></td><td width="40px"><button id="_id__act_btn">&nbsp;</button></td></tr></table></h3><div id="_id__sub_container" style="height:120px;max-height:120px" class="sub_container">&nbsp;</div>';
+var item_format = '<h3 id="_id__h"><table width="100%" class="gridtable"><tr id="_id__tr"><td style="width:140px;"><div style="width:140px;text-overflow:ellipsis;overflow:hidden;white-space:nowrap;" title="_title_">_title_</div></td><td><div id="_id__progressbar" title="_title_"></div></td><td width="95px" id="_id__speed"></td><td width="40px"><button id="_id__btn">&nbsp;</button></td><td width="40px"><button id="_id__act_btn">&nbsp;</button></td></tr></table></h3><div id="_id__sub_container" style="height:120px;max-height:120px" class="sub_container">&nbsp;</div>';
 function build_sub_progress(sub_task_id, r, title, sub_container){
 	var elem_id = sub_task_id+"_sub_progressbar";
 	var sub_progress = sub_container.find('#'+elem_id);
@@ -162,6 +162,7 @@ var download_ui = {
 		var sub_task_params = args.tasks_params;
 		var total_file_size = args.total_file_size;
 		var total_length = args.total_length;
+		var need = args.need;
 		var r = build_percentage(total_file_size, total_length);
 		var speed = args.speed;
 		// console.log('update_sub_tasks args:', args);
@@ -208,7 +209,11 @@ var download_ui = {
 			}
 			btn.button("refresh");
 		}
-		$('#'+task_id+'_speed').html(r+'%|'+speed);
+		if(isover){
+			speed = '-';
+			need = '-';
+		}
+		$('#'+task_id+'_speed').html(r+'%|'+speed+'|'+need);
 		$("#"+task_id+'_tr')[0].progressbar.progressbar("value", r);
 		
 		

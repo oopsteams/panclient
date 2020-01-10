@@ -22,13 +22,13 @@ ipcRenderer.on('asynchronous-reply', function(event, args){
 			var id = args.id;
 			if(waiting_replay[tag] == id){
 				var item = args.item;
-				if(['jpg', 'jpeg', 'png', 'gif', 'bmp'].indexOf(item.type)>=0){
-					$('#data .image img').one('load', function () { 
-						$(this).css({'marginTop':'-' + $(this).height()/2 + 'px','marginLeft':'-' + $(this).width()/2 + 'px'}); 
-					}).attr('src',item.dlink);
-					$('#data .default').hide();
-					$('#data .image').show();
-				} 
+				// if(['jpg', 'jpeg', 'png', 'gif', 'bmp'].indexOf(item.type)>=0){
+				// 	$('#data .image img').one('load', function () { 
+				// 		$(this).css({'marginTop':'-' + $(this).height()/2 + 'px','marginLeft':'-' + $(this).width()/2 + 'px'}); 
+				// 	}).attr('src',item.dlink);
+				// 	$('#data .default').hide();
+				// 	$('#data .image').show();
+				// } 
 				if(item.isdir == 0){
 					var _html = '<table class="gridtable">';
 					var bit = 'K';
@@ -53,6 +53,7 @@ ipcRenderer.on('asynchronous-reply', function(event, args){
 					$('#data .image').hide();
 				}
 				$(".download").attr('data-item', JSON.stringify(item));
+				$(".download").button('enable');
 				
 			}
 		}else if("download" == tag){
@@ -96,7 +97,9 @@ ipcRenderer.on('asynchronous-reply', function(event, args){
 			var id = args.id;
 			$("#"+id).button('enable');
 		}else if("show_dialog" == tag){
-			command('download');
+			//command('download');
+			var jstree_inst = $.jstree.reference('#tree');
+			jstree_inst.show_all();
 		}
 	}
 });
@@ -122,11 +125,11 @@ var init_ui = ()=>{
 			"id": 'net_disk'}
 			);
 	}).end();
-	$("#download_list").button({icon: "ui-icon-grip-solid-horizontal", showLabel: false}).on("click", function (event, ui) {
-		$("#download_list").button('disable');
-		command('download');
-		// ipcRenderer.send('asynchronous-message', {"tag":"btn_click", "data": {}, "id": 'download_list'});
-	}).end();
+	// $("#download_list").button({icon: "ui-icon-grip-solid-horizontal", showLabel: false}).on("click", function (event, ui) {
+	// 	$("#download_list").button('disable');
+	// 	command('download');
+	// 	// ipcRenderer.send('asynchronous-message', {"tag":"btn_click", "data": {}, "id": 'download_list'});
+	// }).end();
 	$("#self_sync_root").button({icon: "ui-icon-transferthick-e-w", showLabel: false}).on("click", function (event, ui) {
 		$("#self_sync_root").button('disable');
 		ipcRenderer.send('asynchronous-message', {"tag":"btn_click",
@@ -461,6 +464,9 @@ $( function() {
 			} else {
 				sec_idx = -1;
 			}
+			$(".download").button('disable');
+			var jstree_inst = $.jstree.reference('#tree');
+			jstree_inst.hide_all();
 			if(sec_idx>=0){
 				ipcRenderer.send('asynchronous-message', {"tag":"redownload",
 							"data": dataset.item, "section_index": sec_idx}

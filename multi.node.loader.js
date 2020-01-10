@@ -735,36 +735,39 @@ var CrossFileLoader = Base.extend({
 		if(!this.context.task || !this.context.task.id){
 			return;
 		}
-		if(this.isMaster()){
-			console.log('source_id:', this.context.task.id);
-			download_loader_db.query_mult_params({'source_id':this.context.task.id, 'pin':0}, (loader_list)=>{
-				console.log('query source_id:', ithis.context.task.id);
-				console.log('query loader_list length:', loader_list.length);
-				var need_rebuild_loader = false;
-				if(!loader_list || loader_list.length==0){
-					need_rebuild_loader = true;
-				} else {
-					var expired_at = new Date(loader_list[0]['expired_at']);
-					console.log("expired_at time:", expired_at.getTime());
-					console.log(" Date.now():", Date.now());
-					if(expired_at.getTime()<Date.now()){
+		download_loader_db.update_by_conditions({'source_id':this.context.task.id}, {'pin': 0}, function(){
+			if(ithis.isMaster()){
+				console.log('source_id:', ithis.context.task.id);
+				download_loader_db.query_mult_params({'source_id':ithis.context.task.id, 'pin':0}, (loader_list)=>{
+					console.log('query source_id:', ithis.context.task.id);
+					console.log('query loader_list length:', loader_list.length);
+					var need_rebuild_loader = false;
+					if(!loader_list || loader_list.length==0){
 						need_rebuild_loader = true;
+					} else {
+						var expired_at = new Date(loader_list[0]['expired_at']);
+						console.log("expired_at time:", expired_at.getTime());
+						console.log(" Date.now():", Date.now());
+						if(expired_at.getTime()<Date.now()){
+							need_rebuild_loader = true;
+						}
+						// this.context.build_main_tasks();
+						// console.log('loader_list:', loader_list);
 					}
-					// this.context.build_main_tasks();
-					// console.log('loader_list:', loader_list);
-				}
-				if(need_rebuild_loader){
-					_path = "source/readydownload";
-					call_pansite_by_post(ithis.context.token, POINT, _path, {"fs_id": ithis.item["fs_id"]}, (result)=>{
-						console.log("readydownload result:", result);
-						ithis.build_download_thread(result, section_index);
-					});
-				} else {
-					ithis.loaders = loader_list;
-					ithis.context.build_main_tasks();
-				}
-			});
-		}
+					if(need_rebuild_loader){
+						_path = "source/readydownload";
+						call_pansite_by_post(ithis.context.token, POINT, _path, {"fs_id": ithis.item["fs_id"]}, (result)=>{
+							console.log("readydownload result:", result);
+							ithis.build_download_thread(result, section_index);
+						});
+					} else {
+						ithis.loaders = loader_list;
+						ithis.context.build_main_tasks();
+					}
+				});
+			}
+		});
+		
 	}
 	
 	
@@ -963,21 +966,23 @@ var MultiFileLoader = Base.extend({
 						id_vals[id_vals.length-1] = the_last_v;
 						new_id = id_vals.join('_');
 					}
-					var new_start = t.params.start+file_real_size - skip_size;
-					var task_params = {'id':new_id, 'source_id':t.params.source_id, 'start':new_start, 'end':t.params.end, 'over':0, 'idx':2, 'retry':0, 'loader_id': t.params.loader_id, 'state': 0};
-					var _task = new Tasker(ithis, task_params);
-					_task.save(()=>{
-						t.update_pos(t.params.start, new_start, ()=>{
-							t.update_state(2,()=>{
-								// async_re_call(pos+1);
-								t.verify_file((changed)=>{
-									ithis.tasks.push(_task);
-									patch_tasks.push(_task);
-									final_call(true);
+					t.update_state(2,()=>{
+						// async_re_call(pos+1);
+						setTimeout(function(){
+							t.try_close_pipe();
+							var new_start = t.params.start+file_real_size - skip_size;
+							var task_params = {'id':new_id, 'source_id':t.params.source_id, 'start':new_start, 'end':t.params.end, 'over':0, 'idx':2, 'retry':0, 'loader_id': t.params.loader_id, 'state': 0};
+							var _task = new Tasker(ithis, task_params);
+							_task.save(()=>{
+								t.update_pos(t.params.start, new_start, ()=>{
+									t.verify_file((changed)=>{
+										ithis.tasks.push(_task);
+										patch_tasks.push(_task);
+										final_call(true);
+									});
 								});
-								
 							});
-						});
+						},3000);
 					});
 				} else {
 					t.update_state(0,()=>{
@@ -1174,12 +1179,14 @@ var MultiFileLoader = Base.extend({
 			
 			if(all_over){
 			  ithis.merge_final_file(()=>{
-				  ithis.sender.send('asynchronous-reply', {'id': ithis.task.id, 'over':all_over, 'task': ithis.task, 'tag':'sub_tasks', 'tasks_params':sub_task_params, 'total_length': total_length, 'total_file_size':total_file_size, "speed": speed});
+				  ithis.sender.send('asynchronous-reply', {'id': ithis.task.id, 'over':all_over, 'task': ithis.task, 'tag':'sub_tasks', 'tasks_params':sub_task_params, 'total_length': total_length, 'total_file_size':total_file_size, "speed": speed, "need": exhaust});
 			  });
 			  return true;
 			}else{
 			  ithis.deal_check_tasks_events((cnt)=>{if(cnt>0)console.log('deal cnt:', cnt)});
-			  ithis.sender.send('asynchronous-reply', {'id': ithis.task.id, 'over':all_over, 'task': ithis.task, 'tag':'sub_tasks', 'tasks_params':sub_task_params, 'total_length': total_length, 'total_file_size':total_file_size, "speed": speed});
+			  if(ithis.is_ready){
+				  ithis.sender.send('asynchronous-reply', {'id': ithis.task.id, 'over':all_over, 'task': ithis.task, 'tag':'sub_tasks', 'tasks_params':sub_task_params, 'total_length': total_length, 'total_file_size':total_file_size, "speed": speed, "need": exhaust});
+			  }
 			  return false;
 			}
 		};
@@ -1277,6 +1284,9 @@ var MultiFileLoader = Base.extend({
 		} else {
 			if(cb)cb();
 		}
+		self.is_ready = true;
+		MultiFileLoader.instance_map[this.task.id] = this;
+		this.sender.send('asynchronous-reply', {'tag': 'synctasks', 'tasks': MultiFileLoader.instance_map})
 	},
 	re_build_sub_tasks:function(){
 		var ithis = this;
@@ -1446,6 +1456,7 @@ var MultiFileLoader = Base.extend({
 		{"id": "486285832886933_0", "source_id": "486285832886933", "start": 0, "end": 187011800, "over": 0, "pos": 0, "retry": 0, "loader_id": 0, "state": 2}, {"id": "486285832886933_1", "source_id": "486285832886933", "start": 187011800, "end": 374023600, "over": 0, "pos": 0, "retry": 0, "loader_id": 0, "state": 2}, {"id": "486285832886933_2", "source_id": "486285832886933", "start": 374023600, "end": 561035400, "over": 0, "pos": 0, "retry": 0, "loader_id": 0, "state": 2}, {"id": "486285832886933_3", "source_id": "486285832886933", "start": 561035400, "end": 748047200, "over": 0, "pos": 0, "retry": 0, "loader_id": 0, "state": 3}, {"id": "486285832886933_4", "source_id": "486285832886933", "start": 748047200, "end": 935059000, "over": 0, "pos": 0, "retry": 0, "loader_id": 0, "state": 2}, {"id": "486285832886933_5", "source_id": "486285832886933", "start": 935059000, "end": 1122070800, "over": 0, "pos": 0, "retry": 0, "loader_id": 0, "state": 2}, {"id": "486285832886933_6", "source_id": "486285832886933", "start": 1122070800, "end": 1309082600, "over": 0, "pos": 0, "retry": 0, "loader_id": 0, "state": 2}, {"id": "486285832886933_7", "source_id": "486285832886933", "start": 1309082600, "end": 1496094400, "over": 0, "pos": 0, "retry": 0, "loader_id": 0, "state": 2}, {"id": "486285832886933_8", "source_id": "486285832886933", "start": 1496094400, "end": 1683106197, "over": 0, "pos": 0, "retry": 0, "loader_id": 0, "state": 2},
 		*/
 		var ithis = this;
+		ithis.is_ready = false;
 		var maybe_merge = false;
 		this.tasks.sort(function(task_a, task_b){
 			return task_a.params["start"] - task_b.params["start"];
@@ -1636,8 +1647,10 @@ var MultiFileLoader = Base.extend({
 			if(!fs.existsSync(this.download_file_path)){
 			  fs.mkdirSync(this.download_file_path);
 			}
-			MultiFileLoader.instance_map[this.task.id] = this;
-			this.sender.send('asynchronous-reply', {'tag': 'synctasks', 'tasks': MultiFileLoader.instance_map})
+			if(this.task['state'] == 2){
+				MultiFileLoader.instance_map[this.task.id] = this;
+				this.sender.send('asynchronous-reply', {'tag': 'synctasks', 'tasks': MultiFileLoader.instance_map})
+			}
 		};
 		
 	},
@@ -1676,7 +1689,7 @@ var MultiFileLoader = Base.extend({
 	constructor:function(account, item, sender, emit_tag, cb){
 		this.account = account;
 		var ithis = this;
-		
+		this.is_ready = false;
 		this.checking_next_task = false;
 		this.sender = sender;
 		this.item = item;

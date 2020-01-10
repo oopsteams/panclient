@@ -15,9 +15,9 @@
 		html, body { background:#ebebeb; font-size:10px; font-family:Verdana; margin:0; padding:0; }
 		#container { min-width:320px; margin:0px auto 0 auto; background:white; border-radius:0px; padding:0px; overflow:hidden; }
 		#tree { float:left; min-width:319px; border-right:1px solid silver; overflow:auto; padding:0px 0; }
-		#data { margin-left:320px; }
+		#data { margin-left:320px; overflow-y: scroll;}
 		#data textarea { margin:0; padding:0; height:100%; width:100%; border:0; background:white; display:block; line-height:18px; resize:none; }
-		#data, #code { font: normal normal normal 12px/18px 'Consolas', monospace !important; }
+		/* #data, #code { font: normal normal normal 12px/18px 'Consolas', monospace !important; } */
 
 		#tree .folder { background:url('./www/image/file_sprite.png') right bottom no-repeat; }
 		#tree .file { background:url('./www/image/file_sprite.png') 0 0 no-repeat; }
@@ -77,7 +77,7 @@
 			<button id="reload_index" title="刷新">Refresh</button>
 			<button id="self_sync_root" title="同步网盘根目录">SyncNetDisk</button>
 			<button id="net_disk" title="登录网盘">NetDisk</button>
-			<button id="download_list" title="下载列表">DownloadList</button>
+			<!-- <button id="download_list" title="下载列表">DownloadList</button> -->
 			<!-- <label for="transmission-standard">Standard</label>
 			<input type="radio" name="transmission" id="transmission-standard">
 			<label for="transmission-automatic">Automatic</label>
@@ -94,19 +94,19 @@
 	<div id="container" role="main">
 		<div id="tree"></div>
 		<div id="data">
-			<div class="content code" style="display:none;"><textarea id="code" readonly="readonly"></textarea></div>
 			<div class="content folder" style="display:none;"></div>
 			<div class="content image" style="display:none; position:relative;"><img src="" alt="" style="display:block; position:absolute; left:50%; top:50%; padding:0; max-height:90%; max-width:90%;" /></div>
 			<div class="content default" style="text-align:center;">Select a file from the tree.
 			</div>
-			<button class="download" style="mex-height:60px;">下载</button>
-			<input id="section_index" value=""/>
-			<div id="default_msg"></div>		
+			<button class="download" style="mex-height:60px;">预下载</button>
+			<div id="default_msg"></div>	
+			<div id="accordion">
+			</div>
 		</div>
 	</div>
 	<div id="dialog" title="Download Tasks">
-		<div id="accordion">
-		</div>
+		<!-- <div id="accordion">
+		</div> -->
 	</div>
 	<div>sucookie.com</div>
 </body>
