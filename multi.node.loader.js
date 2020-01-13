@@ -840,6 +840,8 @@ var MultiFileLoader = Base.extend({
 	deal_check_tasks_events:function(callback){
 		var self = this;
 		if(!self.is_loading()){
+			console.log('main task have not start to load!!!');
+			callback(-1);
 			return;
 		}
 		if(!this.checking_next_task && this.check_tasks_events.length>0){
@@ -1672,8 +1674,10 @@ var MultiFileLoader = Base.extend({
 			console.log('move_file file_dir:', file_dir);
 			if(file_dir && fs.existsSync(file_dir)){
 				var new_file_path = path.join(file_dir, ithis.task.filename);
-				if(!fs.existsSync(file_dir)){
+				console.log('new_file_path:', new_file_path);
+				if(!fs.existsSync(new_file_path)){
 					var final_file = path.join(ithis.download_file_path , ithis.task.filename);
+					console.log('copy final_file:', final_file, ' [to] ', new_file_path);
 					if(fs.existsSync(final_file)){
 						ithis.account.update_default_save_path(file_dir);
 						fs.rename(final_file, new_file_path, (err)=>{
