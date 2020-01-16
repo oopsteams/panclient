@@ -104,6 +104,7 @@ if(ele_remote){
 					console.log('act_btn pin:', pin);
 					$(event.currentTarget).hide();
 					ipcRenderer.send('asynchronous-popwin-backend', {"tag":"delete_task", "task":context});
+					event.stopPropagation();
 				});
 				act_btn.show();
 				btn.show();
@@ -196,18 +197,21 @@ if(ele_remote){
 					ipcRenderer.send('asynchronous-popwin-backend', {"tag":"start_transfer", "task":context, "quota":gparams.quota});
 				}
 				$(event.currentTarget).hide();
+				event.stopPropagation();
 			});
 			act_btn.on("click", function(event){
 				var context=event.currentTarget.context;
 				var pin = context.pin;
 				console.log('act_btn pin:', pin);
 				ipcRenderer.send('asynchronous-popwin-backend', {"tag":"delete_task", "task":context});
+				event.stopPropagation();
 			});
 			sync_to_es_btn.on("click", function(event){
 				var context=event.currentTarget.context;
 				var pin = context.pin;
 				ipcRenderer.send('asynchronous-popwin-backend', {"tag":"sync_es", "task":context});
 				$(event.currentTarget).hide();
+				event.stopPropagation();
 			});
 			// one_by_one_btn.on("click", function(event){
 			// 	var context=event.currentTarget.context;
@@ -224,7 +228,7 @@ if(ele_remote){
 				$(event.currentTarget).hide();
 				context.hide_resume=true;
 				ipcRenderer.send('asynchronous-popwin-backend', {"tag":"retry_scan", "task":context});
-				
+				event.stopPropagation();
 			});
 			if([0,9].indexOf(_t.pin)>=0){
 				btn.hide();

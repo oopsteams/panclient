@@ -116,6 +116,7 @@ var download_ui = {
 						ipcRenderer.send('asynchronous-message', {"tag":"del_task", "id": loader.task.id});
 						remove_accordion_item(loader.task.id);
 					}
+					event.stopPropagation();
 				});
 				act_btn.on("click", function(event){
 					var loader=event.currentTarget.loader;
@@ -129,6 +130,7 @@ var download_ui = {
 					}else{
 						ipcRenderer.send('asynchronous-message', {"tag":"move_file", "id": loader.task.id});
 					}
+					event.stopPropagation();
 				});
 				init_sub_container(loader_id);
 				
