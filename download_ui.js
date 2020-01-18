@@ -37,8 +37,8 @@ function check_sub_progress(sub_task_id, r, title, sub_container){
 function remove_accordion_item(sub_task_id){
 	var sub_container = sub_task_id+"_sub_container";
 	var h_id = sub_task_id+"_h";
-	console.log('remove sub_container:', sub_container);
-	console.log('remove sub_task_id:', h_id);
+	// console.log('remove sub_container:', sub_container);
+	// console.log('remove sub_task_id:', h_id);
 	$("#"+sub_container).remove();
 	$("#"+h_id).remove();
 	setTimeout(()=>{$("#accordion").accordion("refresh");},100);
@@ -55,6 +55,12 @@ function init_sub_container(loader_id){
 	//     });
 }
 var download_ui = {
+	remove_task_ok:function(st, id){
+		if(st == 0){
+			ipcRenderer.send('asynchronous-message', {"tag":"del_task", "id": id});
+			remove_accordion_item(id);
+		}
+	},
 	update_download_tasks: function(tasks){
 		var tasks_container = $("#accordion");
 		if(!tasks_container[0].obj){

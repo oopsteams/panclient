@@ -86,6 +86,10 @@ ipcRenderer.on('asynchronous-reply', function(event, args){
 			if(init_call){
 				init_call(tk, pt);
 			}
+		}else if("move_end" == tag){
+			var id = args.id;
+			var st = args.st;
+			download_ui.remove_task_ok(st, id);
 		}else if("synctasks" == tag){
 			var tasks = args.tasks;
 			// for(var loader_id in tasks){
@@ -177,7 +181,9 @@ $( function() {
 		
 		$(window).resize(function () {
 			var h = Math.max($(window).height() - 100, 420);
+			var w = Math.max(Math.round($(window).width()/3), 320);
 			$('#container, #data, #tree').height(h).filter('.default').css('lineHeight', h + 'px');
+			$('#tree').width(w);
 		}).resize();
 		$('#tree').jstree({
 			'core' : {

@@ -2,9 +2,36 @@
 <html>
 	<head>
 		<meta charset="utf-8">
+		<link href="./www/js/jquery-ui/jquery-ui.css" rel="stylesheet">
 		<title>Help</title>
+		<style>
+			html,body {
+				width: 100%;
+				height: 100%;
+				margin: 0;
+				padding: 0;
+			}
+			body {
+				display: flex;
+				align-items: center;
+				justify-content: center;
+				flex-direction: column;
+			}
+			.container{
+				display: flex;
+				flex:1 0 auto;
+				align-items: center;
+				justify-content: center;
+				overflow: auto;
+			}
+			.footer,.header {
+				flex:0 0 auto;
+			}
+		</style>
 	</head>
 	<body>
-		<div id="message"></div>
+		<div class="header"></div>
+		<div style="text-align: center;" class="container"><p id="message">&nbsp;</p></div>
+		<div style="text-align: center;margin-bottom: 2px;" class="footer"><button id="close_btn">关闭</button></div>
 	</body>
 </html>

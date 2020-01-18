@@ -157,9 +157,13 @@ const createWindow = () => {
 				sync(item_id, false);
 			}
 		}else if("move_file" == tag){
-			var loader = Multi_loader.instance_map[arg.id];
+			var id = arg.id;
+			var loader = Multi_loader.instance_map[id];
 			if(loader){
-				loader.move_file();
+				loader.move_file((st)=>{
+					console.log('cb st:', st);
+					event.sender.send('asynchronous-reply', {'st': st, 'tag': 'move_end', 'id': id});
+				});
 			}
 		}else if("del_task" == tag){
 			var loader = Multi_loader.instance_map[arg.id];

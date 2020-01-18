@@ -1656,37 +1656,58 @@ var MultiFileLoader = Base.extend({
 		};
 		
 	},
-	move_file:function(){
+	_show_alert:function(msg){
+		show_alert.show(msg,null,(state)=>{},{'modal':true, 'width':360, 'height':280});
+	},
+	move_file:function(cb){
 		var ithis = this;
 		var default_path = this.account.get_default_save_path((default_save_path)=>{
 			_move_file(default_save_path);
+			// ithis._show_alert('测试一下!')
 		});
 		function _move_file(default_path){
 			if(!default_path){
 				default_path = ithis.download_file_path;
 			}
-			const file_dir = dialog.showOpenDialog({
+			const file_dirs = dialog.showOpenDialog({
 				title: '选择'+ithis.task.filename+'迁移目录',
 				buttonLabel: '迁移',
 				defaultPath: default_path,
 				properties: ['openDirectory']
 			  });
-			console.log('move_file file_dir:', file_dir);
-			if(file_dir && fs.existsSync(file_dir)){
+			console.log('move_file target file_dir:', file_dirs);
+			if(file_dirs && file_dirs.length>0 && fs.existsSync(file_dirs[0])){
+				var file_dir = file_dirs[0];
 				var new_file_path = path.join(file_dir, ithis.task.filename);
 				console.log('new_file_path:', new_file_path);
 				if(!fs.existsSync(new_file_path)){
 					var final_file = path.join(ithis.download_file_path , ithis.task.filename);
-					console.log('copy final_file:', final_file, ' [to] ', new_file_path);
+					// console.log('copy final_file:', final_file, ' [to] ', new_file_path);
 					if(fs.existsSync(final_file)){
 						ithis.account.update_default_save_path(file_dir);
 						fs.rename(final_file, new_file_path, (err)=>{
-							show_alert.show(err);
+							if(err){
+								console.log('err:', err);
+								err_info = 'error:迁移失败!<br>';
+								for(var k in err){
+									err_info+=k+':'+err[k]+"<br>";
+								}
+								ithis._show_alert(err_info);
+								if(cb){cb(1);}
+							} else {
+								if(cb){cb(0);}
+								fs.rmdirSync(ithis.download_file_path);
+							}
+							
 						});
 					}
 				} else {
-					show_alert.show('存在同名文件,迁移失败!');
+					ithis._show_alert('存在同名文件,迁移失败!');
+					if(cb){cb(1);}
 				}
+			} else {
+				console.log('target file_dirs:', file_dirs, ', not exists!');
+				if(cb){cb(1);}
 			}
 		}
 	},

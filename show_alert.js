@@ -1,4 +1,4 @@
-const {BrowserWindow} = require('electron')
+const {BrowserWindow, ipcMain} = require('electron')
 const cfg = require('electron-cfg');
 var path = require('path');
 var alert_window = null;
@@ -47,17 +47,33 @@ var createAlertWindow =(message, parent_win, callback, params) => {
 		// alert_window.webContents.executeJavaScript(script_val).then((result)=>{
 		// 	console.log('alert_window execute result:', result);
 		// });
-		alert_window.show();
+		// alert_window.show();
 	});
 	alert_window.on('closed', () => {
+		// console.log('closing....');
 	  if(callback){
 		  callback('closed', alert_window);
 	  }
 	  alert_window = null;
 	});
 	alert_window.webContents.on('did-finish-load', () => {
-	    alert_window.webContents.send('asynchronous-alert', {tag:'start', msg:message});
+	    alert_window.webContents.send('asynchronous-alert', {tag:'start'});
 	  });
+	
+	ipcMain.on('asynchronous-alert-backend', (event, args) => {
+		if('ready' == args.tag){
+			args.tag = 'ready_ok';
+			args.params = {};
+			alert_window.webContents.send('asynchronous-alert', args);
+		} else if('init_ok' == args.tag){
+			alert_window.webContents.send('asynchronous-alert', {tag:'message', msg:message});
+			alert_window.show();
+		} else if('close' == args.tag){
+			// console.log('close it.');
+			setTimeout(()=>{if(alert_window)alert_window.close();},100);
+		}
+	});
+	
 	alert_window.loadURL(`file://${__dirname}/empty.html`);
 	return alert_window;
 };
