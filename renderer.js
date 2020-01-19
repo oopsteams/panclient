@@ -227,14 +227,7 @@ $( function() {
 						"label":"刷新",
 						"action":(data)=>{
 							var inst = $.jstree.reference(data.reference), node = inst.get_node(data.reference);
-							console.log('sync inst:', inst);
-							console.log('sync node:', node);
-							node.id
-							ipcRenderer.send('asynchronous-message', {"tag":"sync",
-								"data": node.data, 
-								"id": node.id, 
-								"name": node.text}
-								);
+							inst.refresh(node);
 						}
 					};
 					if(node.icon === 'file'){
