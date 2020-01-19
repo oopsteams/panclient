@@ -82,7 +82,7 @@ var download_ui = {
 			var tr=tasks_container.find('#'+loader_id+'_tr');
 			if(tr.length==0){
 				var task_dom = item_format.replace(_id_reg, loader_id).replace(_title_reg, loader.task.filename);
-				console.log("task_dom:", task_dom);
+				// console.log("task_dom:", task_dom);
 				tasks_container.prepend($(task_dom));
 				tr=tasks_container.find('#'+loader_id+'_tr');
 				var act_btn = $('#'+loader_id+'_act_btn');
@@ -91,7 +91,7 @@ var download_ui = {
 				btn[0].loader = loader;
 				btn[0].state=loader.task.state;
 				var val = 0;
-				// console.log('loader.task.state:', loader.task.state);
+				console.log('loader.task.state:', loader.task.state, ", id:",loader.task.id);
 				if([0, 3].indexOf(loader.task.state)>=0){
 					btn.html("继续下载");
 					btn.button({icon: "ui-icon-arrowthickstop-1-s", showLabel: false});
@@ -194,7 +194,11 @@ var download_ui = {
 		}
 		var btn = $('#'+task_id+'_btn');
 		var act_btn = $('#'+task_id+'_act_btn');
-		var loader = btn[0].loader;
+		var loader = btn[0]?btn[0].loader:null;
+		if(!loader){
+			console.log('['+task_id+'] task not exist!');
+			return;
+		}
 		var _state = loader?btn[0].loader.task.state:0;
 		// console.log('_state:',_state);
 		// console.log('task_param.state:',task_param.state);

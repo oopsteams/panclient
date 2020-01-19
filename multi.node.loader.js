@@ -397,6 +397,9 @@ var Tasker = Base.extend({
 		if(fs.existsSync(file_path)){
 			var states = fs.statSync(file_path);
 			var f_size =  states.size;
+			if(f_size == 0){
+				return {'error_code':9999, 'error_msg':'nothing in this file['+file_path+']!'}
+			}
 			if(f_size < skip_size){
 				var file_buffer = fs.readFileSync(file_path);
 				var find_brace = false;
@@ -453,6 +456,10 @@ var Tasker = Base.extend({
 							return {'error': jsonstr};
 						}
 					}
+				}
+				if(this.size() > f_size){
+					rm_fs();
+					return {'error_code':9999, 'error_msg':'datas is not enough, in this file['+file_path+']!'}
 				}
 			}
 		}
@@ -536,18 +543,6 @@ var Tasker = Base.extend({
 			  params['over'] = 1;
 			  params['tm'] = get_now_timestamp();
 			  stream.end();
-			  // var check_rs = ithis.check_req_stream_file(file_path);
-			  // if(check_rs){
-				 //  check_rs_by_check_rs(check_rs);
-			  // }else{
-				 //  download_loader_db.update_by_id(loader.id, {'pin': 0}, (id, ps)=>{
-					// if(ithis.get_state() != 3 && ithis.get_state() != 2){
-					// 	ithis.update_state(2, ()=>{final_call(2);});
-					// } else {
-					// 	console.log('出现未知情况,状态为3.');
-					// }
-				 //  });
-			  // }
 			});
 			rq.on("error", function(err){
 			  console.log("rq error 文件["+fn+"]下载失败!===>",err);
@@ -840,7 +835,7 @@ var MultiFileLoader = Base.extend({
 	deal_check_tasks_events:function(callback){
 		var self = this;
 		if(!self.is_loading()){
-			console.log('main task have not start to load!!!');
+			// console.log('main task have not start to load!!!');
 			callback(-1);
 			return;
 		}
@@ -1606,7 +1601,6 @@ var MultiFileLoader = Base.extend({
 				}catch(e){
 					console.error(e);
 				}
-				
 			});
 			download_loader_db.del('source_id',ithis.task.id,()=>{
 				if(cb){cb();}
@@ -1616,10 +1610,14 @@ var MultiFileLoader = Base.extend({
 		
 	},
 	del:function(cb){
-		this.complete();
-		console.log('del task:', this.task);
-		download_task_db.del('id', this.task.id,()=>{
-			if(cb){cb();}
+		var ithis = this;
+		this.complete(()=>{
+			console.log('del task:', ithis.task);
+			download_task_db.del('id', ithis.task.id,()=>{
+				looper.removeListener(ithis.task.id);
+				delete MultiFileLoader.instance_map[ithis.task.id];
+				if(cb){cb();}
+			});
 		});
 	},
 	update_state:function(state, cb){
@@ -1638,10 +1636,13 @@ var MultiFileLoader = Base.extend({
 		var ithis = this;
 		this.saved = true;
 		this.download_file_path = path.join(download_path, this.task.id);
+		console.log('save_task_params will save task:', ithis.task);
 		download_task_db.get('id',this.task.id,(_task)=>{
 			if(_task){
+				console.log('save_task_params will update task:', ithis.task);
 				download_task_db.update_by_id(ithis.task.id, ithis.task, next_fun);
 			}else{
+				console.log('will new task!');
 				download_task_db.put(ithis.task, next_fun);
 			}
 		});

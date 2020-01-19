@@ -224,7 +224,7 @@ $( function() {
 					ctxmenu.sync={
 						"separator_after"	: false,
 						"separator_before":false,
-						"label":"同步",
+						"label":"刷新",
 						"action":(data)=>{
 							var inst = $.jstree.reference(data.reference), node = inst.get_node(data.reference);
 							console.log('sync inst:', inst);
