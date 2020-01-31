@@ -180,7 +180,7 @@ var download_ui = {
 			var sub_container = $('#'+task_id+'_sub_container');
 			sub_task_params.forEach((st, idx)=>{
 				var sub_speed = st.speed;
-				sr = build_percentage(st.get_size, st.end-st.start);
+				sr = (st.end-st.start)>0?build_percentage(st.get_size, st.end-st.start):0;
 				var sub_title = "下载节点:"+st.id+","+sr+"%";
 				if(sub_speed){
 					sub_title = sub_title + "|" + sub_speed;

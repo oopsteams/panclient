@@ -1,6 +1,7 @@
 const ele_remote = require('electron').remote;
 if(ele_remote){
 	var jQuery = null;
+	var closable = true;
 	var ipcRenderer = require('electron').ipcRenderer;
 	// function send_log(){
 	// 	ipcRenderer.send('asynchronous-spider-backend', {"tag":"console.log", "arguments":arguments, "source":current_tag});
@@ -9,6 +10,10 @@ if(ele_remote){
 		// console.log("recv args:", args);
 		current_tag = args.tag;
 		if('start'==args.tag){
+			var options = args.options;
+			console.log('options:', options);
+			closable = options&&options.hasOwnProperty('closable')?options.closable:true;
+			console.log('closable:', closable);
 			ipcRenderer.send('asynchronous-alert-backend', {"tag":"ready"});
 		} else if('message' == args.tag){
 			var msg = args.msg;
@@ -31,10 +36,14 @@ if(ele_remote){
 	});
 	var init_widget = ()=>{
 		var close_btn = $('#close_btn');
-		console.log('close_btn:', close_btn);
-		close_btn.button({icon: "ui-icon-close", showLabel: true}).on('click',(e)=>{
-			close_btn.button('disable');
-			ipcRenderer.send('asynchronous-alert-backend', {"tag":"close"});
-		}).end();
+		if(closable){
+			// console.log('close_btn:', close_btn);
+			close_btn.button({icon: "ui-icon-close", showLabel: true}).on('click',(e)=>{
+				close_btn.button('disable');
+				ipcRenderer.send('asynchronous-alert-backend', {"tag":"close"});
+			}).end();
+		} else {
+			close_btn.hide();
+		}
 	};
 }

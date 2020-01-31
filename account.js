@@ -48,6 +48,35 @@ var api = {
 			}
 		});
 	},
+	check_state_by_pan_acc:function(pan_acc, point, parent_win, callback){
+		var auth_redirect = pan_acc.auth;
+		var token = pan_acc.token;
+		console.log('pan_acc:', pan_acc);
+		check_access.check_code_by_pan_acc(pan_acc, token, point, auth_redirect, parent_win, (isok)=>{
+			// console.log("check_code cb:");
+			// if(token){
+			// 	// accounts_db.get('accounts').assign({token: token, tm:helpers.now()}).write();
+			// 	accounts_db.put({id: token, tm:helpers.now()}, (params)=>{
+			// 		callback(isok);
+			// 	});
+			// } else {
+			// 	if(!isok){
+			// 		api.check_state(point, parent_win, callback);
+			// 	} else {
+			// 		callback(isok);
+			// 	}
+			// }
+			
+			if(!isok){
+				api.check_state(point, parent_win, callback);
+			} else {
+				accounts_db.put({id: token, tm:helpers.now()}, (params)=>{
+					callback(isok);
+				});
+			}
+			
+		});
+	},
 	update_default_save_path:function(path){
 		accounts_db.put({default_save_path: path});
 	},
@@ -128,9 +157,25 @@ function call_pansite_by_post(point, path, params, parent_win, callback){
 		token = json_obj['token'];
 		console.log("need_renew_access_token:", need_renew_access_token);
 		console.log("auth_redirect:", auth_redirect);
-		console.log("token:", token);
+		console.log("json_obj:", json_obj);
 		
 		if(need_renew_access_token){
+			pan_acc_list = json_obj.pan_acc_list;
+			pan_acc_list.forEach((pa, idx)=>{pa['token'] = token});
+			check_access.loop_check_accounts(token, point, pan_acc_list, auth_redirect, parent_win, (isok)=>{
+				if(token){
+					accounts_db.put({id: token, tm:helpers.now()}, (params)=>{
+						callback(isok);
+					});
+				} else {
+					if(!isok){
+						api.check_state(point, parent_win, callback);
+					} else {
+						callback(isok);
+					}
+				}
+			});
+			/*
 			check_access.check_code(token, point, auth_redirect, parent_win, (isok)=>{
 				// console.log("check_code cb:");
 				if(token){
@@ -147,6 +192,7 @@ function call_pansite_by_post(point, path, params, parent_win, callback){
 				}
 				
 			});
+			*/
 		} else {
 			if(token){
 				// accounts_db.get('accounts').assign({token: token, tm:helpers.now()}).write();

@@ -185,6 +185,18 @@ const createWindow = () => {
 			}else if('reload_index' == arg.id){
 				reload_index();
 			}
+		}else if("reauth" == tag){
+			var pan_acc = arg.pan_acc;
+			account.check_state_by_pan_acc(pan_acc, point,mainWindow,(valide)=>{
+				if(valide){
+					
+				}
+				if(valide){
+					mainWindow.loadURL(`file://${__dirname}/index.html`);
+				}else{
+					mainWindow.loadURL(`file://${__dirname}/hello.html`);
+				}
+			});
 		}
 	
     }
@@ -303,6 +315,7 @@ var reload_index = function(){
 }
 function relogin(){
 	account.clear_token();
+	if(mainWindow)mainWindow.loadURL(`file://${__dirname}/hello.html`);
 	ready();
 }
 function correct_download_task(){

@@ -3,7 +3,12 @@ if(require('electron').remote){
 	ipcRenderer.on('asynchronous-login', function(event, args){
 		console.log("recv args:", args);
 		if('start'==args.tag){
-			
+			document.addEventListener('keydown', function(event){
+				if (event.keyCode == "13") {
+					event.preventDefault();
+					window.to_login();
+				}
+			});
 		}
 	});
 	// ipcRenderer.send('asynchronous-login-backend', {"tag":"click"});

@@ -15,7 +15,7 @@ var createAlertWindow =(message, parent_win, callback, params) => {
 	var w=400,h=400;
 	
 	if(params){
-		closable = params.hasOwnProperty('closable')?params.closable:true;
+		// closable = params.hasOwnProperty('closable')?params.closable:true;
 		ismodal = params.hasOwnProperty('modal')?params.modal:true;
 		w = params.hasOwnProperty('width')?params.width:400;
 		h = params.hasOwnProperty('height')?params.height:400;
@@ -57,7 +57,8 @@ var createAlertWindow =(message, parent_win, callback, params) => {
 	  alert_window = null;
 	});
 	alert_window.webContents.on('did-finish-load', () => {
-	    alert_window.webContents.send('asynchronous-alert', {tag:'start'});
+		console.log('open it.');
+	    alert_window.webContents.send('asynchronous-alert', {tag:'start', 'options':params});
 	  });
 	
 	ipcMain.on('asynchronous-alert-backend', (event, args) => {
@@ -69,7 +70,7 @@ var createAlertWindow =(message, parent_win, callback, params) => {
 			alert_window.webContents.send('asynchronous-alert', {tag:'message', msg:message});
 			alert_window.show();
 		} else if('close' == args.tag){
-			// console.log('close it.');
+			console.log('close it.');
 			setTimeout(()=>{if(alert_window)alert_window.close();},100);
 		}
 	});

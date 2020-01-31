@@ -360,8 +360,8 @@ if(ele_remote){
 								var recs = rs.records;
 								if(recs.hasOwnProperty('msg_list')){
 									var msg_list = recs.msg_list;
-									global_base_params.msg_list = msg_list;
-									copy_shared_list(msg_list, results);
+									global_base_params.msg_list = msg_list.sort((a,b)=>{return parseInt(b.msg_ctime)-parseInt(a.msg_ctime)});
+									copy_shared_list(global_base_params.msg_list, results);
 								}
 							}
 							cb(results);
@@ -377,6 +377,7 @@ if(ele_remote){
 					var datas = file_items.datas;
 					for(var i=0;i<datas.length;i++){
 						var item = datas[i];
+						console.log('re_match_root:', root_name, ',item name:', item.name);
 						if(root_name == item.name){
 							fid_list.forEach((fid,idx)=>{
 								if(file_items.hasOwnProperty(fid)){
@@ -401,7 +402,8 @@ if(ele_remote){
 							confirmBack: function(t) {
 								var target_dir = t;
 								send_log('target_dir:', target_dir);
-								var parent_dir = fetch_parent_dir();
+								// var parent_dir = fetch_parent_dir();
+								var parent_dir = global_base_params.pdir
 								send_log('parent_dir:', parent_dir);
 								re_match_root(parent_dir);
 								var first_fid = fid_list[0];
@@ -639,6 +641,24 @@ if(ele_remote){
 						}
 					});
 				};
+				var list_container = document.querySelector('div[node-type=sharelist-container]');
+				list_container.addEventListener('mousedown', function(event){
+					var parent_dir = fetch_parent_dir();
+					if(!global_base_params.hasOwnProperty('pdir')){
+						global_base_params.pdir = parent_dir;
+					} else {
+						var pdir = global_base_params.pdir;
+						var idx = pdir.indexOf(parent_dir[0]);
+						if(idx>0){
+							pdir.splice(idx, pdir.length-idx-1);
+							global_base_params.pdir = pdir.concat(parent_dir);
+						} else {
+							global_base_params.pdir = parent_dir;
+						}
+					}
+					console.log('list_container global_base_params.pdir:',global_base_params.pdir);
+				});
+				/*
 				var dir_btn=document.createElement("BUTTON");
 				// btn.value='动态导入';
 				dir_btn.innerHTML = '扫描分享目录';
@@ -651,6 +671,7 @@ if(ele_remote){
 						}
 					});
 				};
+				*/
 				// ipcRenderer.send('asynchronous-spider-backend', {"tag":"intercept", "loc":document.location.href});
 			}
 		}, null, until);

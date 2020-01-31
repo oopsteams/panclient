@@ -347,6 +347,11 @@ var Tasker = Base.extend({
 		var file_path = path.join(this.loader_context.download_file_path, fn);
 		// console.log('check_file_size file_path:', file_path);
 		if(fs.existsSync(file_path)){
+			if(this.size() == 0){
+				fs.unlinkSync(file_path);
+				this.last_get_size = 0;
+				return 0;
+			}
 			var states = fs.statSync(file_path);
 			if(this.size()>states.size){
 				if(this.get_state() == 2){
@@ -378,6 +383,7 @@ var Tasker = Base.extend({
 			this.params['get_size'] = states.size;
 			return states.size;
 		}
+		this.last_get_size = 0;
 		return 0;
 	},
 	try_close_pipe:function(){
@@ -481,6 +487,7 @@ var Tasker = Base.extend({
 	emit_loader_thread:function(loader){
 		var ithis = this;
 		var params = this.params;
+		var is_patch = params.hasOwnProperty('patch')?params.patch==1:false;
 		// var loader = this.loader_context.cfl.get_loader_by_id(params['loader_id']);
 		var url = loader.dlink;
 		var fn = params['id'];
@@ -619,6 +626,10 @@ var Tasker = Base.extend({
 		};
 		var final_call = function(st){
 			if(!ithis.loader_context.is_loading()){
+				return;
+			}
+			if(is_patch){
+				console.log('this is patched sub task, will stop here!');
 				return;
 			}
 			if(!ithis.loader_context.check_next_task(file_path)){
@@ -919,42 +930,64 @@ var MultiFileLoader = Base.extend({
 					t.params.end = retain_section_start;
 				}
 				t.params.loader_id = loader.id;
-				console.log('t.params.start, end:', t.params.start, t.params.end);
-				console.log('retain_section_start, retain_section_end:', retain_section_start, retain_section_end);
-				console.log('will update sub task:', t.params.id, {'end':t.params.end, 'loader_id':t.params.loader_id, 'state': 0});
-				download_sub_task_db.update_by_id(t.params.id, {'end':t.params.end, 'loader_id':t.params.loader_id, 'state': 0}, ()=>{
-					t.params.state = 0;
-					if(retain_section_start < retain_section_end){
-						var new_id = t.params.id+'_1';
-						if(t.params.idx > 0){
-							var id_vals = t.params.id.split('_');
-							var the_last_v = id_vals[id_vals.length-1];
-							the_last_v = parseInt(the_last_v) + 1;
-							id_vals[id_vals.length-1] = the_last_v;
-							new_id = id_vals.join('_');
-						}
-						var task_params = {'id':new_id, 'source_id':ithis.task.id, 'start':retain_section_start, 'end':retain_section_end, 'over':0, 'idx':1, 'retry':0, 'loader_id': 0, 'state': 7};
-						item['tasks'].push(task_params);
-						var task = new Tasker(ithis, task_params);
-						task.save(()=>{
+				
+				if(retain_section_start < retain_section_end){
+					var new_id = t.params.id+'_1';
+					if(t.params.idx > 0){
+						var id_vals = t.params.id.split('_');
+						var the_last_v = id_vals[id_vals.length-1];
+						the_last_v = parseInt(the_last_v) + 1;
+						id_vals[id_vals.length-1] = the_last_v;
+						new_id = id_vals.join('_');
+					}
+					var task_params = {'id':new_id, 'source_id':ithis.task.id, 'start':retain_section_start, 'end':retain_section_end, 'over':0, 'idx':1, 'retry':0, 'loader_id': 0, 'state': 7};
+					item['tasks'].push(task_params);
+					var task = new Tasker(ithis, task_params);
+					task.save(()=>{
+						t.params.end = retain_section_start;
+						t.params.state = 0;
+						download_sub_task_db.update_by_id(t.params.id, {'end':t.params.end, 'loader_id':t.params.loader_id, 'state': 0}, ()=>{
 							ithis.tasks.push(task);
 							patch_tasks.push(t);
 							final_call(true);
 						});
-					} else {
-						patch_tasks.push(t);
-						final_call(true);
-					}
-				});
-			} else if(t.get_state() == 3){
-				var file_real_size = t.fs_file_size();
-				if(file_real_size && file_real_size>0 && file_real_size < skip_size){
-					t.update_state(0,()=>{
-						fs.unlinkSync(file_path);
+					});
+				} else {
+					download_sub_task_db.update_by_id(t.params.id, {'loader_id':t.params.loader_id, 'state': 0}, ()=>{
 						patch_tasks.push(t);
 						final_call(true);
 					});
-				} else if(file_real_size && t.size() >= file_real_size){
+				}
+				
+				// console.log('t.params.start, end:', t.params.start, t.params.end);
+				// console.log('retain_section_start, retain_section_end:', retain_section_start, retain_section_end);
+				// console.log('will update sub task:', t.params.id, {'end':t.params.end, 'loader_id':t.params.loader_id, 'state': 0});
+				// download_sub_task_db.update_by_id(t.params.id, {'end':t.params.end, 'loader_id':t.params.loader_id, 'state': 0}, ()=>{
+				// 	t.params.state = 0;
+				// 	if(retain_section_start < retain_section_end){
+				// 		var new_id = t.params.id+'_1';
+				// 		if(t.params.idx > 0){
+				// 			var id_vals = t.params.id.split('_');
+				// 			var the_last_v = id_vals[id_vals.length-1];
+				// 			the_last_v = parseInt(the_last_v) + 1;
+				// 			id_vals[id_vals.length-1] = the_last_v;
+				// 			new_id = id_vals.join('_');
+				// 		}
+				// 		var task_params = {'id':new_id, 'source_id':ithis.task.id, 'start':retain_section_start, 'end':retain_section_end, 'over':0, 'idx':1, 'retry':0, 'loader_id': 0, 'state': 7};
+				// 		item['tasks'].push(task_params);
+				// 		var task = new Tasker(ithis, task_params);
+				// 		task.save(()=>{
+				// 			ithis.tasks.push(task);
+				// 			patch_tasks.push(t);
+				// 			final_call(true);
+				// 		});
+				// 	} else {
+				// 		patch_tasks.push(t);
+				// 		final_call(true);
+				// 	}
+				// });
+			} else if(t.get_state() == 3){
+				var renew_sub_task = ()=>{
 					var new_id = t.params.id+'_1';
 					if(t.params.idx == 2){
 						var id_vals = t.params.id.split('_');
@@ -963,30 +996,37 @@ var MultiFileLoader = Base.extend({
 						id_vals[id_vals.length-1] = the_last_v;
 						new_id = id_vals.join('_');
 					}
-					t.update_state(2,()=>{
-						// async_re_call(pos+1);
-						setTimeout(function(){
-							t.try_close_pipe();
-							var new_start = t.params.start+file_real_size - skip_size;
-							var task_params = {'id':new_id, 'source_id':t.params.source_id, 'start':new_start, 'end':t.params.end, 'over':0, 'idx':2, 'retry':0, 'loader_id': t.params.loader_id, 'state': 0};
-							var _task = new Tasker(ithis, task_params);
-							_task.save(()=>{
-								t.update_pos(t.params.start, new_start, ()=>{
-									t.verify_file((changed)=>{
-										ithis.tasks.push(_task);
-										patch_tasks.push(_task);
-										final_call(true);
-									});
-								});
+					t.try_close_pipe();
+					var new_start = t.params.start;
+					var task_params = {'id':new_id, 'source_id':t.params.source_id, 'start':new_start, 'end':t.params.end, 'over':0, 'idx':2, 'retry':0, 'loader_id': t.params.loader_id, 'state': 0, 'patch': 1};
+					var _task = new Tasker(ithis, task_params);
+					_task.save(()=>{
+						t.update_state(2,()=>{
+							t.update_pos(t.params.start, new_start, ()=>{
+								ithis.tasks.push(_task);
+								patch_tasks.push(_task);
+								final_call(true);
 							});
-						},3000);
+						});
+						
 					});
-				} else {
-					t.update_state(0,()=>{
-						patch_tasks.push(t);
-						final_call(true);
-					});
-				}
+				};
+				renew_sub_task();
+				// var file_real_size = t.fs_file_size();
+				// if(file_real_size && file_real_size>0 && file_real_size < skip_size){
+				// 	t.update_state(0,()=>{
+				// 		fs.unlinkSync(file_path);
+				// 		patch_tasks.push(t);
+				// 		final_call(true);
+				// 	});
+				// } else if(file_real_size && t.size() >= file_real_size){
+				// 	renew_sub_task();
+				// } else {
+				// 	t.update_state(0,()=>{
+				// 		patch_tasks.push(t);
+				// 		final_call(true);
+				// 	});
+				// }
 			}else {
 				async_re_call(pos + 1, loader);
 			}
@@ -1495,7 +1535,8 @@ var MultiFileLoader = Base.extend({
 								async_re_call(pos+1);
 							});
 						} else {
-							var new_start = t.params.start+states.size;
+							// var new_start = t.params.start+states.size;
+							var new_start = t.params.start;
 							var id_prefix = t.params.id
 							if(id_prefix.split("_").length>4){
 								id_prefix = id_prefix.split("_")[0];
@@ -1506,6 +1547,7 @@ var MultiFileLoader = Base.extend({
 							_task.save(()=>{
 								t.update_pos(t.params.start, new_start, ()=>{
 									t.update_state(2,()=>{
+										t.check_file_size();
 										async_re_call(pos+1);
 									});
 								});

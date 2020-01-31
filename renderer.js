@@ -1,6 +1,7 @@
 const { ipcRenderer } = require('electron')
 const account_renderer = require('./account_renderer.js');
 const download_ui = require('./download_ui.js');
+const pan_acc_manager = require('./pan_account.manager.js');
 var jQuery = $ = require("jquery");
 // prints "pong"
 // console.log(ipcRenderer.sendSync('synchronous-message', 'ping'))
@@ -10,9 +11,9 @@ var jQuery = $ = require("jquery");
 var waiting_replay = {}
 var progress_infos = {}
 var init_call = null;
+var load_ui_called = false;
 var dialog_max_width = 450;
 ////////////////update download tasks
-
 
 ipcRenderer.on('asynchronous-reply', function(event, args){
 	if(args && args.hasOwnProperty('tag')){
@@ -22,13 +23,6 @@ ipcRenderer.on('asynchronous-reply', function(event, args){
 			var id = args.id;
 			if(waiting_replay[tag] == id){
 				var item = args.item;
-				// if(['jpg', 'jpeg', 'png', 'gif', 'bmp'].indexOf(item.type)>=0){
-				// 	$('#data .image img').one('load', function () { 
-				// 		$(this).css({'marginTop':'-' + $(this).height()/2 + 'px','marginLeft':'-' + $(this).width()/2 + 'px'}); 
-				// 	}).attr('src',item.dlink);
-				// 	$('#data .default').hide();
-				// 	$('#data .image').show();
-				// } 
 				if(item.isdir == 0){
 					var _html = '<table class="gridtable">';
 					var bit = 'K';
@@ -37,10 +31,6 @@ ipcRenderer.on('asynchronous-reply', function(event, args){
 						_size = Math.round(_size/1024);
 						bit = 'M';
 					}
-					// if(_size>1024){
-					// 	_size = Math.round(_size/1024);
-					// 	bit = 'G';
-					// }
 					_html += '<tr><td width="90px">文件名:</td>'
 					_html += '<td>'+item.filename+'</td></tr>'
 					_html += '<tr><td>大小:</td>'
@@ -92,10 +82,6 @@ ipcRenderer.on('asynchronous-reply', function(event, args){
 			download_ui.remove_task_ok(st, id);
 		}else if("synctasks" == tag){
 			var tasks = args.tasks;
-			// for(var loader_id in tasks){
-			// 	var loader = tasks[loader_id];
-			// 	console.log("loader:["+loader_id+"]:", loader);
-			// }
 			download_ui.update_download_tasks(tasks);
 		}else if("recover_btn" == tag){
 			var id = args.id;
@@ -104,6 +90,14 @@ ipcRenderer.on('asynchronous-reply', function(event, args){
 			//command('download');
 			var jstree_inst = $.jstree.reference('#tree');
 			jstree_inst.show_all();
+		}else if("renew_pan_acc" == tag){
+			var el = '#dialog_container';
+			var pan_acc_list = args.pan_acc_list;
+			load_ui((t)=>{
+				command('pan_acc',()=>{
+					setTimeout(()=>{pan_acc_manager.show_dialog(pan_acc_list);},10);
+				});
+			});
 		}
 	}
 });
@@ -151,8 +145,14 @@ var init_ui = ()=>{
 	}).end();
 };
 var dialog = null;
+var load_ui = null;
 $( function() {
-	function ready_for_tree(token){
+	load_ui = function(cb){
+		if(load_ui_called){
+			if(cb)cb(false);
+			return;
+		}
+		load_ui_called = true;
 		jQuery.getScript("./www/js/jquery-ui/jquery-ui.js").done(function() {
 			dialog = $("#dialog").dialog({
 				autoOpen: false,
@@ -164,21 +164,22 @@ $( function() {
 						$("#dialog").dialog("close");
 					}
 				},
-				close: function(){$("#download_list").button('enable');},
+				close: function(){
+					// $("#download_list").button('enable');
+				},
 				resize: function(){
-					$("#accordion").accordion("refresh");
+					$("#dialog_container").accordion("refresh");
 				}
 			});
 			$.getScript("./www/js/jquery-ui/jquery.cookie.min.js").done(function(){
-				ready_for_search();
-				loaded();
-			});
-			init_ui();
+				if(cb)cb(true);
+			}).fail(()=>{if(cb)cb(false);});
+			
 		}).fail(function() {
-			//TODO
+			if(cb)cb(false);
 		});
-		
-		
+	}
+	function ready_for_tree(token){
 		$(window).resize(function () {
 			var h = Math.max($(window).height() - 100, 420);
 			var w = Math.max(Math.round($(window).width()/3), 320);
@@ -387,10 +388,20 @@ $( function() {
 			point = pt + "source/";
 			console.log("token,pt,point:", token, pt, point);
 			__token = token;
+			load_ui(()=>{
+				ready_for_search();
+				loaded();
+				init_ui();
+			});
 			ready_for_tree(token);
 		}
 		// ipcRenderer.send('asynchronous-message', {"tag":"token"});
 		ipcRenderer.send('asynchronous-message', {"tag":"ready"});
+	} else {
+		// init_call = function(token, pt){
+		// 	load_ui();
+		// }
+		// ipcRenderer.send('asynchronous-message', {"tag":"ready"});
 	}
     // $(document).contextmenu(function(event) {
     //     // dialog.dialog('open');
@@ -562,10 +573,12 @@ $( function() {
 		$( document ).tooltip();
 	}
 } );
-function command(tag){
-	if('download' == tag){
+function command(tag, cb){
+	if('pan_acc' == tag){
 		if(dialog){
+			// dialog.dialog( "option", {'open':function(){if(cb){cb();}}} );
 			dialog.dialog( "open" );
+			if(cb){cb();}
 		}
 	}
 	
