@@ -1193,7 +1193,7 @@ var MultiFileLoader = Base.extend({
 			  if(counter >= max_counter){
 			    last_get_size = total_file_size;
 			    counter = 0;
-			  }else if(total_file_size>last_get_size){
+			  }else if(total_file_size>=last_get_size){
 			    if(counter >= min_counter){
 							  var real_speed = (total_file_size-last_get_size)/counter;
 							  if(real_speed>0){
