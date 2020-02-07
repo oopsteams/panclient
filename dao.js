@@ -360,6 +360,37 @@ var Dao = Base.extend(
 				}
 			});
 		},
+		query_by_distinct:function(keys, params, cb){
+			before_call.apply(this);
+			var ithis = this;
+			var where_str = '';
+			for(var k in params){
+				var _f = this.find_field_by_name(k);
+				var value = params[k];
+				if(_f){
+					if(where_str.length == 0){
+						where_str = k + "=" + this.format_val_by_type(_f, value);
+					} else {
+						where_str += " and "+ k + "=" + this.format_val_by_type(_f, value);
+					}
+				}
+			}
+			var keys_str = '';
+			keys.forEach((k, idx)=>{
+				if(idx == 0){keys_str = k}
+				else {keys_str += ','+k}
+			});
+			var query_rows = "select "+keys_str+" from " + this.name + " where " + where_str + " group by "+ keys_str;
+			ithis.db.all(query_rows, (err, rows)=>{
+				if(err != null){
+					console.log("err, query_rows:",query_rows);
+					throw err;
+				}
+				if(cb){
+					cb(rows);
+				}
+			});
+		},
 		query_mult_params:function(params, cb, size, offset, orderby){
 			before_call.apply(this);
 			var ithis = this;

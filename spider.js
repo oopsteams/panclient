@@ -374,6 +374,7 @@ if(ele_remote){
 			var re_match_root = (parent_dir)=>{
 				if(parent_dir && parent_dir.length>0){
 					var root_name = parent_dir[0];
+					console.log('re_match_root file_items:',file_items);
 					var datas = file_items.datas;
 					for(var i=0;i<datas.length;i++){
 						var item = datas[i];
@@ -438,7 +439,7 @@ if(ele_remote){
 									var results = {datas:[]};
 									shared_list_has_more(_gid, stype, bdtk, ch, web_val, appid, ctype, results, 1, 60, (rs)=>{
 										if(rs){
-											console.log('rs:', rs);
+											console.log('load_root_files shared list:', rs);
 											// rs.datas.forEach((dt, idx)=>{
 											// 	file_items[dt.fid] = dt;
 											// });

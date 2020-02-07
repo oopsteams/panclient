@@ -355,8 +355,15 @@ var Tasker = Base.extend({
 			var states = fs.statSync(file_path);
 			if(this.size()>states.size){
 				if(this.get_state() == 2){
-					// this.update_state(3);
+					this.update_state(3);
 				}
+			} else if(this.size()<states.size){
+				if(this.get_state() == 2){
+					this.update_state(3);
+				}
+				fs.unlinkSync(file_path);
+				this.last_get_size = 0;
+				return 0;
 			}
 			if(this.last_get_size == 0){
 			  this.last_get_size = states.size;
@@ -1179,9 +1186,10 @@ var MultiFileLoader = Base.extend({
 		var looper_listener = function(p){
 			var total_size = total_length;
 			var total_file_size = ithis.get_download_size();
+			var complete_total_file_size = ithis.get_download_complete_size();
 			// console.log("total_size,total_file_size:", total_size, total_file_size);
-			var all_over = total_file_size == total_length;
-			all_over = total_file_size >= total_length;
+			var all_over = complete_total_file_size == total_length;
+			all_over = complete_total_file_size >= total_length;
 			// console.log("total_size:", total_size);
 			// console.log("total_file_size:", total_file_size);
 			var r = build_percentage(total_file_size, total_length);
@@ -1586,14 +1594,31 @@ var MultiFileLoader = Base.extend({
 		};
 		async_re_call(0);
 	},
+	get_download_complete_size:function(){
+		var ithis = this;
+		var get_size = 0;
+		this.tasks.forEach(function(t, index){
+			var params = t.params
+			var fn = t.params.id;
+			if(t.get_state() == 2){
+				var task_file_size = t.check_file_size();
+				get_size = get_size + task_file_size;
+			}
+		});
+		return get_size;
+	},
 	get_download_size:function(){
 		var ithis = this;
 		var get_size = 0;
 		this.tasks.forEach(function(t, index){
 			var params = t.params
 			var fn = t.params.id;
-			var task_file_size = t.check_file_size();
-			get_size = get_size + task_file_size;
+			if(t.get_state() == 2 || t.get_state() == 1){
+				var task_file_size = t.check_file_size();
+				get_size = get_size + task_file_size;
+			}
+			// var task_file_size = t.check_file_size();
+			// get_size = get_size + task_file_size;
 		});
 		return get_size;
 	},

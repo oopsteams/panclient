@@ -262,7 +262,12 @@ var window_helper = Base.extend({
 				} else if('retry_scan' == args.tag){
 					self.fetch_helper.retry_scan(args.task);
 				} else if('sync_es' == args.tag){
-					self.fetch_helper.sync_to_es(args.task.id);
+					self.fetch_helper.recursive_update_dir_size(args.task,()=>{
+						console.log('update_dir_size over!');
+						self.fetch_helper.sync_to_es(args.task.id);
+					});
+				} else if('test_task' == args.tag){
+					// self.fetch_helper.recursive_update_dir_size(args.task);
 				}
 			});
 		}else{

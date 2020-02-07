@@ -203,6 +203,7 @@ if(ele_remote){
 				var context=event.currentTarget.context;
 				var pin = context.pin;
 				console.log('act_btn pin:', pin);
+				$(event.currentTarget).hide();
 				ipcRenderer.send('asynchronous-popwin-backend', {"tag":"delete_task", "task":context});
 				event.stopPropagation();
 			});
@@ -210,6 +211,7 @@ if(ele_remote){
 				var context=event.currentTarget.context;
 				var pin = context.pin;
 				ipcRenderer.send('asynchronous-popwin-backend', {"tag":"sync_es", "task":context});
+				// ipcRenderer.send('asynchronous-popwin-backend', {"tag":"test_task", "task":context});
 				$(event.currentTarget).hide();
 				event.stopPropagation();
 			});
@@ -230,6 +232,7 @@ if(ele_remote){
 				ipcRenderer.send('asynchronous-popwin-backend', {"tag":"retry_scan", "task":context});
 				event.stopPropagation();
 			});
+			
 			if([0,9].indexOf(_t.pin)>=0){
 				btn.hide();
 				act_btn.hide();
