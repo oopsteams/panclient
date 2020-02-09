@@ -15,6 +15,7 @@ var file_list_db = new Dao({'type':'list', 'name':'file_list',
 		{name:"size", type:'INT'},
 		{name:"pin", type:'INT'},
 		{name:"synced", type:'INT'},
+		{name:"sized", type:'INT'},
 		{name:"server_ctime", type:'INT'},
 		{name:"server_mtime", type:'INT'},
 		{name:"tm", type:'INT'},
@@ -149,17 +150,25 @@ var fetch_file_list_helper = Base.extend({
 		};
 		
 		var sync_datas_to_es = (token, tt_id, app_id, file_list, cb)=>{
-			var params = {
-				"source": "shared",
-				"sourceid": app_id,
-				"sourceuid": tt_id,
-				"datas": file_list
-			};
-			call_pansite_by_post(token, point, path, params, (res)=>{
+			var _file_list = [];
+			file_list.forEach((f, idx)=>{if(f.size>0){_file_list.push(f);}});
+			if(_file_list.length>0){
+				var params = {
+					"source": "shared",
+					"sourceid": app_id,
+					"sourceuid": tt_id,
+					"datas": file_list
+				};
+				call_pansite_by_post(token, point, path, params, (res)=>{
+					if(cb){
+						cb(res);
+					}
+				});
+			} else {
 				if(cb){
-					cb(res);
+					cb({'state': 0});
 				}
-			});
+			}
 		};
 		
 		self.context.account.get_valid_token((token)=>{
@@ -266,8 +275,11 @@ var fetch_file_list_helper = Base.extend({
 		};
 		var stat_dir_total_size = (dir_id, cb)=>{
 			file_list_db.query_sum('size', {'parent':dir_id, 'task_id':task_id, 'app_id': app_id}, (sum_row)=>{
-				var s = sum_row.val;
-				file_list_db.update_by_id(dir_id, {'size': s}, ()=>{
+				var s = 0;
+				if(sum_row && sum_row.val){
+					s = sum_row.val;
+				}
+				file_list_db.update_by_id(dir_id, {'size': s, 'sized': 1}, ()=>{
 					if(cb){
 						cb(dir_id, s);
 					}
@@ -275,6 +287,7 @@ var fetch_file_list_helper = Base.extend({
 			});
 		};
 		var recursive_stat_dir_list_total_size = (dir_list, pos, cb)=>{
+			// console.log('pos:', pos, ',len:', dir_list.length);
 			if(pos >= dir_list.length){
 				if(cb){cb();}
 				return;
@@ -284,7 +297,8 @@ var fetch_file_list_helper = Base.extend({
 			// 	setTimeout(()=>{recursive_stat_dir_list_total_size(dir_list, pos+1,cb);},1);
 			// 	return;
 			// }
-			var sql="select * from file_list where task_id="+task.id+" and isdir=1 and size == 0 and parent='"+p_dir_id+"'";
+			var sql="select * from file_list where task_id="+task.id+" and isdir=1 and (sized ISNULL or sized=0) and parent='"+p_dir_id+"'";
+			// console.log('query sub dir cnt:', sql);
 			file_list_db.query_by_raw_sql(sql, (rows)=>{
 				if(rows && rows.length>0){
 					var all_ids = [];
@@ -292,32 +306,29 @@ var fetch_file_list_helper = Base.extend({
 						all_ids.push(r.id);
 					});
 					recursive_stat_dir_list_total_size(all_ids, 0, ()=>{
-						setTimeout(()=>{recursive_stat_dir_list_total_size(dir_list, pos,cb);},1);
+						//setTimeout(()=>{recursive_stat_dir_list_total_size(dir_list, pos,cb);},1);
+						recursive_stat_dir_list_total_size(dir_list, pos,cb);
 					});
 				} else {
 					stat_dir_total_size(p_dir_id, (did, total_size)=>{
-						if(total_size == 0){
-							zero_dir_arr.push(p_dir_id);
-						}
-						// console.log('dir ', p_dir_id, ' size:', total_size);
-						setTimeout(()=>{recursive_stat_dir_list_total_size(dir_list, pos+1,cb);},1);
+						// if(total_size == 0){
+						// 	zero_dir_arr.push(p_dir_id);
+						// }
+						console.log('dir:', p_dir_id, ' set size:', total_size);
+						recursive_stat_dir_list_total_size(dir_list, pos+1,cb);
 					});
 				}
 			});
 		};
 		
 		var find_parent_dir_list = ()=>{
-			var where_sub_str = '';
-			if(zero_dir_arr.length>0){
-				var id_in_str = zero_dir_arr.join("','");
-				where_sub_str = " and id not in('"+id_in_str+"') ";
-			}
-			var sql="select id from file_list where task_id="+task.id+where_sub_str+" and isdir=1 and size=0 order by tm limit 1";
+			var sql="select id from file_list where task_id="+task.id+" and isdir=1 and (sized ISNULL or sized=0) order by tm limit 1";			
+			// console.log('find_parent_dir_list sql:', sql);
 			file_list_db.query_by_raw_sql(sql, (rows)=>{
 				if(rows && rows.length>0){
 					// console.log('find_parent_dir_list rows:', rows);
 					recursive_stat_dir_list_total_size([rows[0].id], 0, ()=>{
-						setTimeout(()=>{find_parent_dir_list();}, 1);
+						setTimeout(()=>{find_parent_dir_list();}, 10);
 					});
 				} else {
 					if(out_cb){
@@ -1208,7 +1219,7 @@ var fetch_file_list_helper = Base.extend({
 							var re_call_update_file_pin=(pos)=>{
 								if(pos<fid_list.length){
 									var file_id = fid_list[pos];
-									// console.log('update file_id pin = 3:', file_id);
+									console.log('come in !!! update file_id pin = 3:', file_id);
 									file_list_db.update_by_id(file_id, {'pin': 3}, ()=>{
 										re_call_update_file_pin(pos+1);
 									});

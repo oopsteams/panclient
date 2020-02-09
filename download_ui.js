@@ -54,7 +54,12 @@ function init_sub_container(loader_id){
 	//       minHeight: 70
 	//     });
 }
+function update_button_desc($btn, btn_desc){
+	$btn.html(btn_desc);
+	$btn.attr('title',btn_desc);
+}
 var download_ui = {
+
 	remove_task_ok:function(st, id){
 		if(st == 0){
 			ipcRenderer.send('asynchronous-message', {"tag":"del_task", "id": id});
@@ -93,17 +98,17 @@ var download_ui = {
 				var val = 0;
 				console.log('loader.task.state:', loader.task.state, ", id:",loader.task.id);
 				if([0, 3].indexOf(loader.task.state)>=0){
-					btn.html("继续下载");
+					update_button_desc(btn, "继续下载");
 					btn.button({icon: "ui-icon-arrowthickstop-1-s", showLabel: false});
-					act_btn.html("关闭任务");
+					update_button_desc(act_btn, "关闭任务");
 					act_btn.button({icon: "ui-icon-close", showLabel: false});
 				}else if(loader.task.state == 1){
-					btn.html("暂停");
+					update_button_desc(btn, "暂停");
 					btn.button({icon: "ui-icon-pause", showLabel: false});
 				}else{
-					btn.html("关闭任务");
+					update_button_desc(btn, "关闭任务");
 					btn.button({icon: "ui-icon-close", showLabel: false});
-					act_btn.html("迁移文件");
+					update_button_desc(act_btn, "迁移文件");
 					act_btn.button({icon: "ui-icon-transferthick-e-w", showLabel: false});
 					val = 100;
 				}
@@ -205,21 +210,21 @@ var download_ui = {
 		if(_state != task_param.state){
 			loader.task.state = task_param.state;
 			if([0, 3].indexOf(task_param.state)>=0){
-				btn.html("继续下载");
+				update_button_desc(btn, "继续下载");
 				btn.button("option",{icon: "ui-icon-arrowthickstop-1-s"});
-				act_btn.html("关闭任务");
+				update_button_desc(act_btn, "关闭任务");
 				act_btn.button("option",{icon: "ui-icon-close"});
 			}else if(task_param.state == 1){
-				btn.html("暂停");
+				update_button_desc(btn, "暂停");
 				btn.button("option",{icon: "ui-icon-pause"});
 			}else{
-				btn.html("关闭任务");
+				update_button_desc(btn, "关闭任务");
 				btn.button("option",{icon: "ui-icon-close"});
-				act_btn.html("迁移文件");
+				update_button_desc(act_btn, "迁移文件");
 				act_btn.button("option",{icon: "ui-icon-transferthick-e-w"});
 				
 			}
-			btn.button("refresh");
+			// btn.button("refresh");
 		}
 		if(isover){
 			speed = '-';

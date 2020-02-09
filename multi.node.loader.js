@@ -94,9 +94,10 @@ if(!fs.existsSync(download_path)){
   console.log('['+download_path+']dir exist!');
 }
 // const section_max_size = 16 * 1024 * 1024;
-const section_max_size = 8 * 1024 * 1024;
+const section_max_size = 6 * 1024 * 1024;
 const section_min_size = 2* 1024 * 1024;
 const load_thread_num = 5;
+const max_idle_cnt = 30;
 const max_deep = 20;
 const max_counter = 8;
 const min_counter = 3;
@@ -481,9 +482,19 @@ var Tasker = Base.extend({
 	ready_emit_loader_thread:function(cb){
 		var self = this;
 		var params = this.params;
+		var fn = params['id'];
+		var file_path = path.join(self.loader_context.download_file_path, fn);
+		if(params['loader_id'] == 0){
+			console.log('下载任务参数异常,稍后重试:', params);
+			self.loader_context.check_next_task(file_path);
+			if(cb){
+				cb();
+			}
+			return;
+		}
 		var loader = this.loader_context.cfl.get_loader_by_id(params['loader_id']);
 		// console.log('ready_emit_loader_thread loader:', loader);
-		// console.log('ready_emit_loader_thread params:', params);
+		// console.log('ready_emit_loader_thread sub task params:', params);
 		download_loader_db.update_by_id(loader.id, {'pin': 1}, (id, params)=>{
 			self.emit_loader_thread(loader);
 			if(cb){
@@ -491,9 +502,60 @@ var Tasker = Base.extend({
 			}
 		});
 	},
+	recheck_loader:function(loader, cb){
+		var ithis = this;
+		
+		if(loader.hasOwnProperty('transfer_log_id') && loader.transfer_log_id>0){
+			var _path = "source/check_transfer";
+			call_pansite_by_post(ithis.loader_context.token, POINT, _path, {"id": loader.transfer_log_id}, (result)=>{
+				console.log("check_transfer result:", result);
+				if(result && result.hasOwnProperty('dlink') && result.dlink){
+					var transfer_log_id = result.id;
+					var dlink = result.dlink;
+					loader.dlink = dlink;
+					download_loader_db.update_by_id(loader.id, {'dlink': dlink},()=>{
+						if(cb){
+							cb(loader);
+						}
+					});
+				} else {
+					if(cb){
+						cb(loader);
+					}
+				}
+			});
+		} else if(loader.hasOwnProperty('share_log_id') && loader.share_log_id>0){
+			var _path = "source/check_shared_log";
+			call_pansite_by_post(ithis.loader_context.token, POINT, _path, {"id": loader.share_log_id}, (result)=>{
+				console.log("check_transfer result:", result);
+				if(result && result.hasOwnProperty('dlink') && result.dlink){
+					var transfer_log_id = result.id;
+					var dlink = result.dlink;
+					loader.dlink = dlink;
+					download_loader_db.update_by_id(loader.id, {'dlink': dlink},()=>{
+						if(cb){
+							cb(loader);
+						}
+					});
+				} else {
+					if(cb){
+						cb(loader);
+					}
+				}
+			});
+		} else {
+			if(cb){
+				cb(loader);
+			}
+		}
+	},
 	emit_loader_thread:function(loader){
 		var ithis = this;
 		var params = this.params;
+		if([2,7].indexOf(ithis.get_state()) >=0 ) {
+			console.log('下载任务不符合下载状态:', params);
+			return;
+		}
 		var is_patch = params.hasOwnProperty('patch')?params.patch==1:false;
 		// var loader = this.loader_context.cfl.get_loader_by_id(params['loader_id']);
 		var url = loader.dlink;
@@ -528,19 +590,30 @@ var Tasker = Base.extend({
 						  ithis.retry = 0;
 						  download_loader_db.update_by_id(loader.id, {'pin': 3}, (id, ps)=>{
 							download_sub_task_db.update_by_id(ithis.params['id'], {'loader_id':0},()=>{
-								final_call();
+								ithis.update_state(3,()=>{final_call(3);});
 							});
 						  });
 					  }
+				  } else if(31626 == check_rs.error_code){
+					  //check dlink,无须重试,直接等待重新分配loader
+					  console.log('error_code[31626]:', check_rs);
+					  download_loader_db.update_by_id(loader.id, {'pin': 3}, (id, ps)=>{
+						  ithis.recheck_loader(loader,()=>{
+						  		download_sub_task_db.update_by_id(ithis.params['id'], {'loader_id':0},()=>{
+									ithis.update_state(3,()=>{final_call(3);});
+						  		});				  
+						  });
+					  });
+					  return;
 				  } else {
 					  // final_call();
 				  }
-					if(ithis.retry < tasker_retry_max){
-					  ithis.retry += 1;
-					  setTimeout(()=>{ithis.emit_loader_thread(loader);},3000);					  
-					} else {
-						console.log("error 文件["+fn+"]下载失败!", check_rs);
-					}
+				if(ithis.retry < tasker_retry_max){
+				  ithis.retry += 1;
+				  setTimeout(()=>{ithis.emit_loader_thread(loader);},3000);					  
+				} else {
+					console.log("error 文件["+fn+"]下载失败!", check_rs);
+				}
 			  } else {
 				  // final_call();
 				  console.log("error 文件["+fn+"]下载失败!", check_rs);
@@ -636,7 +709,14 @@ var Tasker = Base.extend({
 				return;
 			}
 			if(is_patch){
-				console.log('this is patched sub task, will stop here!');
+				console.log('this is patched sub task, maybe stop here!');
+				ithis.loader_context.checkout_loader_cnt((loader_list)=>{
+					if(loader_list && loader_list.length>1){
+						ithis.loader_context.check_next_task(file_path);
+					} else {
+						console.log('this is patched sub task, maybe stop here!');
+					}
+				});
 				return;
 			}
 			if(!ithis.loader_context.check_next_task(file_path)){
@@ -859,6 +939,7 @@ var MultiFileLoader = Base.extend({
 		}
 		if(!this.checking_next_task && this.check_tasks_events.length>0){
 			var _events = [];
+			self.idle_cnt = 0;
 			this.check_tasks_events.forEach((e, idx)=>{
 				_events.push(e);
 			});
@@ -877,6 +958,16 @@ var MultiFileLoader = Base.extend({
 			};
 			re_call(0);
 		} else {
+			if(!self.checking_next_task){
+				if(!self.idle_cnt){
+					self.idle_cnt = 1;
+				} else {
+					self.idle_cnt += 1;
+				}
+				if(self.idle_cnt >= max_idle_cnt){
+					self.check_next_task('retry');
+				}
+			}
 			callback(0);
 		}
 	},
@@ -947,6 +1038,11 @@ var MultiFileLoader = Base.extend({
 						id_vals[id_vals.length-1] = the_last_v;
 						new_id = id_vals.join('_');
 					}
+					var fn = new_id;
+					var new_sub_file_path = path.join(self.download_file_path, fn);
+					if(fs.existsSync(new_sub_file_path)){
+						new_id = new_id + '_1';
+					}
 					var task_params = {'id':new_id, 'source_id':ithis.task.id, 'start':retain_section_start, 'end':retain_section_end, 'over':0, 'idx':1, 'retry':0, 'loader_id': 0, 'state': 7};
 					item['tasks'].push(task_params);
 					var task = new Tasker(ithis, task_params);
@@ -1003,9 +1099,18 @@ var MultiFileLoader = Base.extend({
 						id_vals[id_vals.length-1] = the_last_v;
 						new_id = id_vals.join('_');
 					}
+					var fn = new_id;
+					var new_sub_file_path = path.join(self.download_file_path, fn);
+					if(fs.existsSync(new_sub_file_path)){
+						new_id = new_id + '_1';
+					}
 					t.try_close_pipe();
 					var new_start = t.params.start;
-					var task_params = {'id':new_id, 'source_id':t.params.source_id, 'start':new_start, 'end':t.params.end, 'over':0, 'idx':2, 'retry':0, 'loader_id': t.params.loader_id, 'state': 0, 'patch': 1};
+					var _sub_t_loader_id = t.params.loader_id;
+					if(''+_sub_t_loader_id == '0'){
+						_sub_t_loader_id = loader.id;
+					}
+					var task_params = {'id':new_id, 'source_id':t.params.source_id, 'start':new_start, 'end':t.params.end, 'over':0, 'idx':2, 'retry':0, 'loader_id': _sub_t_loader_id, 'state': 0, 'patch': 1};
 					var _task = new Tasker(ithis, task_params);
 					_task.save(()=>{
 						t.update_state(2,()=>{
@@ -1039,19 +1144,31 @@ var MultiFileLoader = Base.extend({
 			}
 		}
 		
-		download_loader_db.query_mult_params({'source_id':self.task.id, 'pin':0}, (loader_list)=>{
-			// var page_count = loader_list.length;
-			// if(page_count>0){
-			// 	async_re_call(0, loader_list[0]);
-			// }
+		// download_loader_db.query_mult_params({'source_id':self.task.id, 'pin':0}, (loader_list)=>{
+		// 	// var page_count = loader_list.length;
+		// 	// if(page_count>0){
+		// 	// 	async_re_call(0, loader_list[0]);
+		// 	// }
+		// 	_loader_list = loader_list;
+		// 	console.log('_loader_list len:', _loader_list.length);
+		// 	final_call(true);
+			
+		// });
+		self.checkout_loader_cnt((loader_list)=>{
 			_loader_list = loader_list;
 			console.log('_loader_list len:', _loader_list.length);
 			final_call(true);
-			
 		});
 		
-		
 		return true;
+	},
+	checkout_loader_cnt:function(cb){
+		var self = this;
+		download_loader_db.query_mult_params({'source_id':self.task.id, 'pin':0}, (loader_list)=>{
+			if(cb){
+				cb(loader_list);
+			}
+		});
 	},
 	build_main_tasks:function(){
 		var ithis = this;
