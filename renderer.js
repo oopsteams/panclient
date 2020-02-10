@@ -199,6 +199,25 @@ $( function() {
 							$.extend(_params, node.data)
 						}
 						return _params;
+					},
+					"dataFilter": function(dt, type){
+						if(dt.indexOf('"state"')>0 && dt.indexOf('"force"')>0){
+							var json_dt = JSON.parse(dt);
+							if(json_dt.hasOwnProperty('state')){
+								var f = 0;
+								var v = json_dt.state;
+								f = json_dt.force;
+								if(v == -1){
+									console.log('will send ready command!');
+									ipcRenderer.send('asynchronous-message', {"tag":"relogin"});
+								}
+							}
+						}
+						
+						return dt;
+					},
+					"error": function(req, st, err){
+						console.log('st:', st, ' ,err:', err);
 					}
 				},
 				'check_callback' : function(o, n, p, i, m) {

@@ -62,7 +62,9 @@ var transfer_root_file_db = new Dao({'type':'list', 'name':'transfer_root_file',
 		{name:"task_id", type:'INT'}
 	]
 });
-
+function get_now(){
+	return Date.now()/1000;
+}
 function call_pansite_by_post(token, point, path, jsondata, callback){
 	var headers = {"SURI-TOKEN": token, "Content-Type": "application/json"};
 	var content = JSON.stringify(jsondata);
@@ -310,11 +312,12 @@ var fetch_file_list_helper = Base.extend({
 						recursive_stat_dir_list_total_size(dir_list, pos,cb);
 					});
 				} else {
+					var tm_point = get_now();
 					stat_dir_total_size(p_dir_id, (did, total_size)=>{
 						// if(total_size == 0){
 						// 	zero_dir_arr.push(p_dir_id);
 						// }
-						console.log('dir:', p_dir_id, ' set size:', total_size);
+						console.log('dir:', p_dir_id, ' set size:', total_size, ' exaust:', get_now()-tm_point, '(s) ', get_now());
 						recursive_stat_dir_list_total_size(dir_list, pos+1,cb);
 					});
 				}
@@ -328,7 +331,7 @@ var fetch_file_list_helper = Base.extend({
 				if(rows && rows.length>0){
 					// console.log('find_parent_dir_list rows:', rows);
 					recursive_stat_dir_list_total_size([rows[0].id], 0, ()=>{
-						setTimeout(()=>{find_parent_dir_list();}, 10);
+						setTimeout(()=>{find_parent_dir_list();}, 1);
 					});
 				} else {
 					if(out_cb){
@@ -724,7 +727,7 @@ var fetch_file_list_helper = Base.extend({
 		var to_check_task_file_cnt=(_t, cb)=>{
 			var app_id = _t.app_id;
 			self._query_root_files(_t, (modified_task, root_files)=>{
-				console.log('modified_task:', modified_task);
+				console.log('modified_task:'+modified_task.id,',name:'+modified_task.name, ',path:',modified_task.path,',target:', modified_task.target_path);
 				q_cnt(app_id, modified_task.id, (o_cnt, t_cnt, total_size)=>{
 					modified_task['over_count'] = o_cnt;
 					modified_task['total_count'] = t_cnt;

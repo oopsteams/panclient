@@ -188,7 +188,7 @@ var Dao = Base.extend(
 				// this.db.get(this.name).assign(item).write();
 			}
 		},
-		update_by_conditions: function(conditions, params, cb){
+		update_by_conditions_increment:function(conditions, params, increment_fields,cb){
 			var ithis = this;
 			before_call.apply(ithis);
 			var where_str = '';
@@ -215,6 +215,19 @@ var Dao = Base.extend(
 					set_sql += fn + "=" + mapping_list.vals[idx];
 				}
 			});
+			if(increment_fields){
+				for(var f in increment_fields){
+					var v = increment_fields[f];
+					if(v!=0){
+						if(set_sql.length>0)set_sql += ",";
+						if(v>0){
+							set_sql += f + "=" + f + "+"+v;
+						} else {
+							set_sql += f + "=" + f + v;
+						}
+					}
+				}
+			}
 			var up_sql = "update "+this.name+" set " + set_sql + " where " + where_str;
 			this.db.run(up_sql, (err)=>{
 				if(err != null){
@@ -225,6 +238,45 @@ var Dao = Base.extend(
 					cb(conditions, params);
 				}
 			});
+		},
+		update_by_conditions: function(conditions, params, cb){
+			var ithis = this;
+			this.update_by_conditions_increment(conditions, params, null, cb);
+			// before_call.apply(ithis);
+			// var where_str = '';
+			// for(var k in conditions){
+			// 	var _f = this.find_field_by_name(k);
+			// 	var value = conditions[k];
+			// 	if(_f){
+			// 		if(where_str.length == 0){
+			// 			where_str = k + "=" + this.format_val_by_type(_f, value);
+			// 		} else {
+			// 			where_str += " and "+ k + "=" + this.format_val_by_type(_f, value);
+			// 		}
+			// 	}
+			// }
+			// if(where_str.length == 0){
+			// 	cb(conditions, params);
+			// 	return;
+			// }
+			// var mapping_list = this.mapping_to_insert_sql(params);
+			// var set_sql = "";
+			// mapping_list.fn.forEach((fn, idx)=>{
+			// 	if(fn != 'id'){
+			// 		if(set_sql.length>0)set_sql += ",";
+			// 		set_sql += fn + "=" + mapping_list.vals[idx];
+			// 	}
+			// });
+			// var up_sql = "update "+this.name+" set " + set_sql + " where " + where_str;
+			// this.db.run(up_sql, (err)=>{
+			// 	if(err != null){
+			// 		console.log("err, update_by_conditions up_sql:",up_sql);
+			// 		throw err;
+			// 	}
+			// 	if(cb){
+			// 		cb(conditions, params);
+			// 	}
+			// });
 		},
 		update_by_id:function(id, params, cb){
 			before_call.apply(this);

@@ -425,7 +425,7 @@ var window_helper = Base.extend({
 					var _t = tasks[j];
 					if([5, 9].indexOf(_t.pin)<0){
 						// goto file list
-						self.alertwin = show_alert.show("正在初始化!", self.win, (state)=>{
+						self.alertwin = show_alert.show("正在初始化网盘UI!", self.win, (state)=>{
 							if('closed' == state){
 								setTimeout(()=>{
 									self.dialog(args.params);

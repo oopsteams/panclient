@@ -161,8 +161,8 @@ function build_percentage(part_val, total){
 function query_file_info(token, item_id, callback){
 	tk = token;
 	item = get_from_cache(item_id, (item)=>{
-		console.log('cache item:', item);
 		if(item){
+			console.log('cache item:', item.id, ',filename:',item.filename, ',fs_id:', item.fs_id);
 			callback({'id': parseInt(item_id), 'item': item});
 			return;
 		}else{
@@ -302,10 +302,13 @@ var Tasker = Base.extend({
 			}
 		});
 	},
-	del:function(){
+	del:function(cb){
 		var ithis = this;
 		download_sub_task_db.del('id',this.params['id'], ()=>{
 			console.log("sub task ["+ithis.params['id']+"] del ok!");
+			if(cb){
+				cb();
+			}
 		});
 	},
 	size:function(){
@@ -588,20 +591,31 @@ var Tasker = Base.extend({
 				  if(31045 == check_rs.error_code){
 					  if(ithis.retry >= tasker_retry_max){
 						  ithis.retry = 0;
-						  download_loader_db.update_by_id(loader.id, {'pin': 3}, (id, ps)=>{
-							download_sub_task_db.update_by_id(ithis.params['id'], {'loader_id':0},()=>{
-								ithis.update_state(3,()=>{final_call(3);});
-							});
+						  download_loader_db.update_by_conditions_increment({'id':loader.id}, {'pin': 3}, {'used':-1},()=>{
+							  loader.used -= 1;
+							  download_sub_task_db.update_by_id(ithis.params['id'], {'loader_id':0},()=>{
+								  ithis.params['loader_id'] = 0;
+							  	ithis.update_state(3,()=>{
+										ithis.recheck_loader(loader,()=>{
+											final_call(3);
+										});
+										
+									});
+							  });
 						  });
 					  }
 				  } else if(31626 == check_rs.error_code){
 					  //check dlink,无须重试,直接等待重新分配loader
 					  console.log('error_code[31626]:', check_rs);
-					  download_loader_db.update_by_id(loader.id, {'pin': 3}, (id, ps)=>{
-						  ithis.recheck_loader(loader,()=>{
-						  		download_sub_task_db.update_by_id(ithis.params['id'], {'loader_id':0},()=>{
-									ithis.update_state(3,()=>{final_call(3);});
-						  		});				  
+					  download_loader_db.update_by_conditions_increment({'id':loader.id}, {'pin': 3}, {'used':-1},()=>{
+						  download_sub_task_db.update_by_id(ithis.params['id'], {'loader_id':0},()=>{
+							  ithis.params['loader_id'] = 0;
+						  	ithis.update_state(3,()=>{
+								ithis.recheck_loader(loader,()=>{
+									final_call(3);
+								});
+								
+							});
 						  });
 					  });
 					  return;
@@ -683,7 +697,8 @@ var Tasker = Base.extend({
 			});
 		};
 		var recover_loader_state_by_success = ()=>{
-			download_loader_db.update_by_id(loader.id, {'pin': 0}, ()=>{
+			download_loader_db.update_by_conditions_increment({'id':loader.id}, {'pin': 0}, {'used':1},()=>{
+				loader.used += 1;
 				if(ithis.get_state() != 3 && ithis.get_state() != 2){
 					ithis.update_state(2, ()=>{final_call(2);});
 				} else {
@@ -710,7 +725,7 @@ var Tasker = Base.extend({
 			}
 			if(is_patch){
 				console.log('this is patched sub task, maybe stop here!');
-				ithis.loader_context.checkout_loader_cnt((loader_list)=>{
+				ithis.loader_context.checkout_loader_list((loader_list)=>{
 					if(loader_list && loader_list.length>1){
 						ithis.loader_context.check_next_task(file_path);
 					} else {
@@ -1115,9 +1130,15 @@ var MultiFileLoader = Base.extend({
 					_task.save(()=>{
 						t.update_state(2,()=>{
 							t.update_pos(t.params.start, new_start, ()=>{
-								ithis.tasks.push(_task);
-								patch_tasks.push(_task);
-								final_call(true);
+								ithis.del_sub_task(t, (sub_task, context)=>{
+									var _idx = context.tasks.indexOf(sub_task);
+									// if(_idx>=0){
+									// 	context.tasks.splice(_idx,1);
+									// }
+									ithis.tasks.push(_task);
+									patch_tasks.push(_task);
+									final_call(true);
+								});
 							});
 						});
 						
@@ -1154,7 +1175,7 @@ var MultiFileLoader = Base.extend({
 		// 	final_call(true);
 			
 		// });
-		self.checkout_loader_cnt((loader_list)=>{
+		self.checkout_loader_list((loader_list)=>{
 			_loader_list = loader_list;
 			console.log('_loader_list len:', _loader_list.length);
 			final_call(true);
@@ -1162,13 +1183,13 @@ var MultiFileLoader = Base.extend({
 		
 		return true;
 	},
-	checkout_loader_cnt:function(cb){
+	checkout_loader_list:function(cb){
 		var self = this;
 		download_loader_db.query_mult_params({'source_id':self.task.id, 'pin':0}, (loader_list)=>{
 			if(cb){
 				cb(loader_list);
 			}
-		});
+		}, 50, 0, 'order by used desc');
 	},
 	build_main_tasks:function(){
 		var ithis = this;
@@ -1192,7 +1213,7 @@ var MultiFileLoader = Base.extend({
 			
 			ithis.tasks = [];
 			task_param_list.forEach((p)=>{
-				console.log('p:', p);
+				console.log('task:', p.id, ',end:', p.end, ',state:',p.state);
 				ithis.tasks.push(new Tasker(ithis, p));
 			});
 			if(!ithis.tasks || ithis.tasks.length==0){
@@ -1396,6 +1417,7 @@ var MultiFileLoader = Base.extend({
 		}
 	},
 	_re_call_emit_loader_thread: function(subtasks, fc){
+		var self = this;
 		var used_cnt = 0;
 		var re_call = function(pos){
 			// console.log('_re_call_emit_loader_thread pos:',pos);
@@ -1404,11 +1426,14 @@ var MultiFileLoader = Base.extend({
 				return;
 			}
 			var t = subtasks[pos];
-			if([2, 7].indexOf(t.params.state)<0){
+			console.log('sub task:', t.params.id, ',st:', t.params.state);
+			if(t.params.state == 0){
 				used_cnt = used_cnt + 1;
 				t.ready_emit_loader_thread(()=>{
 					re_call(pos + 1);
 				});
+			} else if(t.params.state == 7){
+				re_call(pos + 1);
 			} else {
 				re_call(pos + 1);
 			}
@@ -1420,7 +1445,7 @@ var MultiFileLoader = Base.extend({
 		var ld_cnt = ithis.cfl.loaders.length;
 		var final_call = function(used_cnt){
 			console.log('emit_tasks, used_cnt, ld_cnt=>', used_cnt, ld_cnt);
-			if(used_cnt < ld_cnt){
+			if(used_cnt==0 || used_cnt < ld_cnt){
 				ithis.check_next_task('init');
 			}
 			ithis.bind_listener();
@@ -1597,7 +1622,7 @@ var MultiFileLoader = Base.extend({
 					merge_a2b(t_a, t_b, target_file_name, (new_size)=>{
 						console.log("update_pos:", t_a.params.start, new_size);
 						t_a.update_pos(t_a.params.start, t_a.params.start,()=>{
-							t_b.update_pos(t_a.params.start, new_size,()=>{
+							t_b.update_pos(t_a.params.start, t_a.params.start+new_size,()=>{
 								merge_task_map[pos]=t;
 								deep_merge_task(pos+1);
 							});
@@ -1699,14 +1724,19 @@ var MultiFileLoader = Base.extend({
 					return task_a.params["start"] - task_b.params["start"];
 				});
 			}
+			var _wrap_on_end = ()=>{
+				if(on_end){
+					on_end();
+				}
+			};
 			console.log("maybe_merge:", maybe_merge);
 			if( maybe_merge){
 				ithis.merge_task_files(()=>{
 					ithis.re_build_sub_tasks();
-					ithis.ready_emit_tasks(on_end);
+					ithis.ready_emit_tasks(_wrap_on_end);
 				});
 			}else{
-				ithis.ready_emit_tasks(on_end);
+				ithis.ready_emit_tasks(_wrap_on_end);
 			}
 		};
 		async_re_call(0);
@@ -1771,24 +1801,57 @@ var MultiFileLoader = Base.extend({
 		});
 		// console.log('new task:', this.task);
 	},
+	del_sub_task:function(sub_task, cb){
+		var ithis = this;
+		if(!sub_task){
+			if(cb){
+				cb(sub_task, ithis);
+			}
+			return;
+		}
+		var fn = sub_task.params.id;
+		sub_task.del(()=>{
+			try{
+				var file_path = path.join(ithis.download_file_path, fn);
+				if(fs.existsSync(file_path)){
+					fs.unlinkSync(file_path);
+				}
+			}catch(e){
+				console.error(e);
+			}
+			if(cb){
+				cb(sub_task, ithis);
+			}
+		});
+	},
 	complete:function(cb){
 		var ithis = this;
 		this.update_state(2, ()=>{
 			ithis.tasks.forEach(function(t, index){
-				var fn = t.params.id;
-				t.del();
-				try{
-					var file_path = path.join(ithis.download_file_path, fn);
-					if(fs.existsSync(file_path)){
-						fs.unlinkSync(file_path);
+				ithis.del_sub_task(t)
+			});
+			ithis.checkout_loader_list((loader_list)=>{
+				if(loader_list && loader_list.length>0){
+					var ids = [];
+					var useds = [];
+					loader_list.forEach((l, idx)=>{
+						if(l.used && l.used != 0){
+							ids.push(l.pan_account_id);
+							useds.push(l.used);
+						}
+					});
+					if(ids.length>0){
+						var _path = "source/sync_used";
+						call_pansite_by_post(ithis.token, POINT, _path, {"ids": ids.join(','),"useds":useds.join(',')}, (result)=>{
+							console.log('同步used数据完成!');
+						});
 					}
-				}catch(e){
-					console.error(e);
 				}
+				download_loader_db.del('source_id',ithis.task.id,()=>{
+					if(cb){cb();}
+				});
 			});
-			download_loader_db.del('source_id',ithis.task.id,()=>{
-				if(cb){cb();}
-			});
+			
 			ithis.tasks = [];
 		});
 		
@@ -1820,10 +1883,10 @@ var MultiFileLoader = Base.extend({
 		var ithis = this;
 		this.saved = true;
 		this.download_file_path = path.join(download_path, this.task.id);
-		console.log('save_task_params will save task:', ithis.task);
+		// console.log('save_task_params will save task:', ithis.task);
 		download_task_db.get('id',this.task.id,(_task)=>{
 			if(_task){
-				console.log('save_task_params will update task:', ithis.task);
+				console.log('save_task_params will update task:', ithis.task.id, ',filename:',ithis.task.filename);
 				download_task_db.update_by_id(ithis.task.id, ithis.task, next_fun);
 			}else{
 				console.log('will new task!');

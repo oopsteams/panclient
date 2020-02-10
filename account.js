@@ -35,7 +35,7 @@ var api = {
 	check_state:function(point, parent_win, callback){
 		console.log("check_state in.");
 		var user = accounts_db.get(null, null, (user)=>{
-			console.log("user:", user);
+			// console.log("user:", user);
 			if(!user || !user['id']||helpers.now() - user['tm']>token_timeout){
 				console.log('callback:',callback);
 				createLoginWindow(point, parent_win, callback);
@@ -82,7 +82,7 @@ var api = {
 	},
 	get_default_save_path:function(cb){
 		accounts_db.get(null, null, (user)=>{
-			console.log("user:", user);
+			// console.log("user:", user);
 			if(cb){
 				if(user){
 					cb(user.default_save_path);
@@ -99,7 +99,7 @@ var api = {
 	},
 	get_valid_token:function(cb){
 		accounts_db.get(null, null, (user)=>{
-			console.log("user:", user);
+			// console.log("user:", user);
 			if(cb){
 				if(user){
 					cb(user.id);

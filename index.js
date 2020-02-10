@@ -139,6 +139,8 @@ const createWindow = () => {
 			if(account){
 				account.close_login_window()
 			}
+		}else if("relogin" == tag){
+			relogin();
 		}else if("ready" == tag){
 			gSender = event.sender;
 			account.get_valid_token((tk)=>{
@@ -380,6 +382,9 @@ app.on('activate', () => {
  //  if (mainWindow === null) {
 	// ready();
  //  }
+	// if(mainWindow){
+	// 	ready();
+	// }
 });
 
 // In this file you can include the rest of your app's specific main process
