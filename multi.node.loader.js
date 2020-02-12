@@ -764,7 +764,7 @@ var CrossFileLoader = Base.extend({
 	},
 	get_loader_by_id:function(loader_id){
 		for(var i=0;i<this.loaders.length;i++){
-			console.log(this.loaders[i].id+"?="+loader_id+":", this.loaders[i].id==loader_id);
+			// console.log(this.loaders[i].id+"?="+loader_id+":", this.loaders[i].id==loader_id);
 			if(this.loaders[i].id==loader_id){
 				return this.loaders[i];
 			}
@@ -1014,6 +1014,7 @@ var MultiFileLoader = Base.extend({
 		}
 		var final_call = function(comeon){
 			if(comeon){
+				console.log('final check loaders: pos:', loader_pos, ',list len:', _loader_list.length);
 				if(loader_pos < _loader_list.length){
 					var _lp = loader_pos;
 					loader_pos = loader_pos + 1;
