@@ -17,7 +17,7 @@
     "request": "2.88.0",
     "lowdb": "1.0.0",
     "jquery": "3.4.1",
-    "async": "3.1.0",
+    "async": "3.2.2",
     "sqlite3": "4.1.0",
     "electron-unhandled": "3.0.1"
   },
